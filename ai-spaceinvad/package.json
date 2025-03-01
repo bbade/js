@@ -1,0 +1,16 @@
+{
+    "name": "space-invaders",
+    "version": "1.0.0",
+    "description": "A simple Space Invaders game in TypeScript",
+    "main": "dist/spaceinv.js", 
+    "scripts": {
+      "start": "parcel index.html",
+      "build": "parcel build index.html"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+      "parcel": "^2.10.3",  
+      "typescript": "^5.2.2"
+    }
+  }

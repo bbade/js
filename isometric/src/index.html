@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Isometric Stacked Tiles with Texture Upload and Bulk Edit</title>
+<style>
+  canvas {
+    border: 1px solid black;
+    cursor: pointer;
+  }
+  #buttons {
+    margin-top: 10px;
+  }
+  button {
+    margin-right: 10px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="iso-canvas" width="1400" height="1024"></canvas>
+<canvas id="ortho-canvas" width="1400" height="1024" style="display: none;"></canvas>
+
+<div id="buttons">
+    <input type="file" id="textureUpload" accept="image/png" style="display: none;">
+    <button id="uploadButton">Upload Texture</button>
+    <button id="resetButton">Reset</button>
+</div>
+
+<script src="./index.ts" type="module"></script>
+</body>
+</html>
