@@ -1,0 +1,20 @@
+{
+    "name": "particle-system",
+    "version": "1.0.0",
+    "description": "A simple particle system in TypeScript",
+    "source": "index.html",  
+    "scripts": {
+      "start": "parcel",
+      "build": "parcel build"
+    },
+    "devDependencies": {
+      "@parcel/transformer-typescript-tsc": "^2.9.3",
+      "parcel": "^2.9.3",
+      "typescript": "^5.0.0"
+    },
+    "targets": {
+      "default": {
+        "distDir": "./dist"
+      }
+    }
+  }

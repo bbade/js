@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Particle Systems</title>
+  <style>
+    body {
+      background-color: #AAA;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100%;
+    }
+
+    canvas {
+        transform: scale(2);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border-radius: 16px;
+
+    }
+
+    #log {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: black;
+    }
+
+    #system-select {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="canvas-container">
+    <canvas id="canvas" width="128" height="64"></canvas>
+  </div>
+
+  <div id="log"></div>
+
+  <select id="system-select">
+    <option value="rain">Rain</option>
+    <option value="fire">Fire</option>
+  </select>
+
+  <script type="module" src="src/main.ts"></script>  
+
+</body>
+
+</html>

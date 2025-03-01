@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+      "target": "es2017",        // Target ECMAScript version (ES6 is widely supported)
+      "module": "esnext",     // Use modern ES modules
+      "outDir": "dist",      // Output compiled JavaScript to a 'dist' directory
+      "rootDir": "src",       // Source files are in 'src'
+      "strict": true,         // Enable strict type checking
+      "esModuleInterop": true,  // Allow default imports from commonjs modules
+      "moduleResolution": "node", // Node-style module resolution
+      "sourceMap": true       // Generate source maps for debugging
+    },
+    "include": ["src/**/*"]  // Compile all files in the 'src' directory
+  }
