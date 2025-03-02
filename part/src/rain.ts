@@ -1,19 +1,22 @@
 import { Particle, SystemConfig, ParticleSystem, Color,  } from './interfaces';
+import { randomRange } from './math';
 
-// Helper function (moved here to keep things self-contained)
-function randomRange(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
-}
+
 
 
 export class RainSystem implements ParticleSystem{
   public particles: Particle[] = []; // Public, as it's accessed in main.ts
-  public readonly config: SystemConfig;
   public readonly canvas: HTMLCanvasElement;
   private palette: Color[];
+  
+  private readonly config = {
+    numParticles: 30,
+    minSpeed: .05,
+    maxSpeed: .09,
+  };
 
-  constructor(config: SystemConfig, canvas: HTMLCanvasElement) {
-    this.config = config;
+
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.palette = [
       new Color(157, 209, 255),
@@ -34,7 +37,7 @@ export class RainSystem implements ParticleSystem{
   }
 
   createParticle(): Particle {
-    return {
+    return Particle.fromArgs({
       x: randomRange(0, this.canvas.width),
       y: randomRange(0, this.canvas.height),
       v: {
@@ -42,16 +45,16 @@ export class RainSystem implements ParticleSystem{
         y: randomRange(this.config.minSpeed, this.config.maxSpeed)
       },
       color: this.randomPaletteColor(),
-      age: 0,
-    };
+      size: null
+    });
   }
 
   private randomPaletteColor(): Color {
     return this.palette[Math.floor(Math.random() * this.palette.length)];
   }
 
-    updateParticle(particle: Particle): void {
-        particle.y += particle.v.y;
+    updateParticle(particle: Particle, deltaT: number): void {
+        particle.y += particle.v.y * deltaT;
 
         if (particle.y > this.canvas.height) {
             particle.x = randomRange(0, this.canvas.width);
@@ -61,7 +64,7 @@ export class RainSystem implements ParticleSystem{
         }
     }
 
-  initializeParticles(): void {
+  createParticles(): void {
     this.particles = [];
     for (let i = 0; i < this.config.numParticles; i++) {
       this.particles.push(this.createParticle());

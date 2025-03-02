@@ -1,19 +1,86 @@
 // src/interfaces.ts
-export interface Particle {
+export class Particle {
     x: number;
     y: number;
     v: Vec2;
+    size: number | null; // if null, will use system's default
     color: Color;
-    age: number; // how many frames its lived for
+    age: number = 0; // how many frames its lived for
+    ageMs: number= 0; // how many milliseconds its lived for
+
+    get p(): Vec2 {
+        return new Vec2(this.x, this.y);
+    }
+
+    constructor(x: number, y: number, v: Vec2, color: Color, size: number | null = null) {
+        this.x = x;
+        this.y = y;
+        this.v = v;
+        this.color = color;
+        this.size = size;
+
+        this.age = 0;
+        this.ageMs = 0;
+    }
+
+    static fromArgs(args:  {x: number, y: number, v: Vec2, color: Color, size: number | null}) {
+        return new Particle(args.x, args.y, args.v, args.color, args.size);
+    }
+
+    init(x: number, y: number, v: Vec2, color: Color, size: number | null = null): Particle {
+        this.x = x;
+        this.y = y;
+        this.v = v;
+        this.color = color;
+        this.size = size;
+
+        this.age = 0;
+        this.ageMs = 0;
+
+        return this;
+    }
 }
 
 export class Vec2 {
     x: number;
     y: number;
+    
     constructor(x: number, y: number) {
         this.x = x;
         this.y = y;
     }   
+
+    add(other: Vec2) {
+        this.x += other.x;
+        this.y += other.y;
+     }
+
+     scale(s: number) {
+        this.x *= s;
+        this.y *= s;
+     }
+}
+
+export class Rect {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+
+    constructor(x: number = 0, y: number = 0, w: number = 0, h: number = 0) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+    }
+
+    get x1(): number {
+        return this.x + this.w;
+    }
+
+    get y1(): number {
+        return this.y + this.h;
+    }
 }
 
 export class Color {
@@ -50,9 +117,8 @@ export interface SystemConfig {
 export interface ParticleSystem {  //Common interface.
     particles: Particle[]; //All systems have particles
     canvas: HTMLCanvasElement;
-    initializeParticles(): void;
-    updateParticle(particle: Particle): void;
-    getPalette?(): Color[] | null;  // Optional:  Might return a palette, might not
+    createParticles(): void;
+    updateParticle(particle: Particle, deltaT:number): void;
     drawOverlay?(context: CanvasRenderingContext2D): void; //optional
 
 }
