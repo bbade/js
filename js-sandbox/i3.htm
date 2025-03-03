@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Isometric Grid with Gradient Board</title>
+  <style>
+    canvas {
+      border: 1px solid black;
+    }
+    .controls {
+      margin-top: 10px;
+    }
+    button {
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="isometricCanvas" width="300" height="200"></canvas>
+
+  <div class="controls">
+    <button id="panUp">Pan Up</button>
+    <button id="panDown">Pan Down</button>
+    <button id="panLeft">Pan Left</button>
+    <button id="panRight">Pan Right</button>
+    <button id="zoomIn">Zoom In</button>
+    <button id="zoomOut">Zoom Out</button>
+  </div>
+
+  <script>
+    class Cell {
+      constructor(color) {
+        this.color = color;
+      }
+    }
+    
+
+    const scaleX = 2;
+    const scaleY = 4;
+    
+    class Board {
+      
+      constructor(bWidth, bHeight) {
+        this.bWidth = bWidth;
+        this.bHeight = bHeight;
+        this.grid =[];
+        
+        for (let bY = 0; bY < bHeight; bY++) {
+          this.grid[bY] =[];
+          for (let bX = 0; bX < bWidth; bX++) {
+            const hue = (bX + bY) / (bWidth + bHeight - 2) * 255;
+            const color = `hsl(${hue}, 100%, 50%)`;
+            this.grid[bY][bX] = new Cell(color);
+          }
+        }
+      }
+      
+      getCell(bX, bY) {
+        if (bX >= 0 && bX < this.bWidth && bY >= 0 && bY < this.bHeight) {
+          return this.grid[bY][bX];
+        }
+        return null;
+      }
+    }
+    
+    class Viewport {
+      constructor(canvas, board) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.defaultCellW = 16;  // Store default width
+        this.defaultCellH = 8;   // Store default height
+        this.cellW = this.defaultCellW;
+        this.cellH = this.defaultCellH;
+        this.zoomLevel = 1;     // Add zoom level
+        this.board = board;
+        this.centerBX = 0;
+        this.centerBY = 0;
+      }
+
+
+      
+      isometricToCanvas(bX, bY) {
+        const canvasX = this.cellW * (bX - bY - this.centerBX + this.centerBY);
+        const canvasY = this.cellH * (bX + bY - this.centerBX - this.centerBY);
+        return { x: canvasX + this.canvas.width / 2, y: canvasY + this.canvas.height / 2 };
+      }
+      
+      isVisible(bX, bY) {
+        const { x: canvasX, y: canvasY } = this.isometricToCanvas(bX + 0.5, bY + 0.5);
+        return canvasX >= 0 && canvasX <= this.canvas.width && canvasY >= 0 && canvasY <= this.canvas.height;
+      }
+      
+      drawCell(bX, bY) {
+        const { x: canvasX, y: canvasY } = this.isometricToCanvas(bX, bY);
+        const cell = this.board.getCell(bX, bY);
+
+        if (cell) {
+          // Calculate vertices
+          const v0x = canvasX;
+          const v0y = canvasY + this.cellH;
+          
+          const v1x = canvasX + this.cellW;
+          const v1y = canvasY;
+
+          const v2x = canvasX;
+          const v2y = canvasY - this.cellH;
+
+          const v3x = canvasX -this.cellW;
+          const v3y = canvasY;
+
+
+          // Draw the path using the calculated vertices
+          this.ctx.fillStyle = cell.color;
+          this.ctx.beginPath();
+          this.ctx.moveTo(v0x, v0y);
+          this.ctx.lineTo(v1x, v1y);
+          this.ctx.lineTo(v2x, v2y);
+          this.ctx.lineTo(v3x, v3y);
+          this.ctx.closePath();
+          this.ctx.fill();
+          this.ctx.stroke();
+        }
+      }
+      
+      drawGrid() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        for (let bY = 0; bY < this.board.bHeight; bY++) {
+          for (let bX = 0; bX < this.board.bWidth; bX++) {
+            if (this.isVisible(bX, bY)) {
+              this.drawCell(bX, bY);
+            }
+          }
+        }
+      }
+      
+      panScreen(dx, dy) {
+        const boardDx = (dx / this.cellW + dy / (this.cellH));
+        const boardDy = (-dx / this.cellW + dy / (this.cellH));
+        
+        this.centerBX -= boardDx;
+        this.centerBY -= boardDy;
+        this.drawGrid();
+      }
+
+      zoom(scaleChange) {
+        // Update zoom level
+        this.zoomLevel *= scaleChange;
+
+        // Update cell width and height based on zoom level
+        this.cellW = this.defaultCellW * this.zoomLevel;
+        this.cellH = this.defaultCellH * this.zoomLevel;
+        
+        this.drawGrid();  // Redraw after zooming
+      }
+    }
+    
+    const canvas = document.getElementById('isometricCanvas');
+    const board = new Board(8, 8);
+    const viewport = new Viewport(canvas, board);
+    viewport.drawGrid();
+
+    // --- Button Event Listeners ---
+    document.getElementById('panUp').addEventListener('click', () => {
+      viewport.panScreen(0, -20);
+    });
+    document.getElementById('panDown').addEventListener('click', () => {
+      viewport.panScreen(0, 20);
+    });
+    document.getElementById('panLeft').addEventListener('click', () => {
+      viewport.panScreen(-20, 0);
+    });
+    document.getElementById('panRight').addEventListener('click', () => {
+      viewport.panScreen(20, 0);
+    });
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      viewport.zoom(1.1);
+    });
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      viewport.zoom(0.9);
+    });
+
+
+    document.addEventListener('keydown', (event) => {
+      switch (event.key) {
+        case 'w':
+        viewport.panScreen(0, -20);
+        break;
+        case 'a':
+        viewport.panScreen(-20, 0);
+        break;
+        case 's':
+        viewport.panScreen(0, 20);
+        break;
+        case 'd':
+        viewport.panScreen(20, 0);
+        break;
+        case '=': // Listen for = and + (they share same keycode)
+          if(event.key === '=' || event.key === '+'){
+            viewport.zoom(1.1); // Zoom in by 10%
+          }
+        break;
+        case '-':
+          viewport.zoom(0.9); //Zoom out
+        break;
+      }
+
+    });
+  </script>
+</body>
+</html>

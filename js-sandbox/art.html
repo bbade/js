@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Simple Artillery Game</title>
+<style>
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0f0f0;
+  margin: 0;
+}
+
+#gameCanvas {
+  border: 2px solid black;
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="512" height="384"></canvas>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const mapWidth = 256;
+  const mapHeight = 192;
+  let gameMap = []; // 0 for sky, 1 for ground
+
+  const playerEmojis = ["😀", "😂", "🤣", "😃", "😄", "😅", "😆", "😉", "😊", "😋", "😎", "😍", "😘", "🥰", "😗", "😙", "😚", "🙂", "🤗", "🤩", "🤔", "🤨", "😐", "😑", "😶", "🙄", "😏", "😣", "😥", "😮", "🤐", "😯", "😪", "😫", "😴", "😌", "🤓", "😛", "😜", "😝", "🤤", "😒", "😓", "😔", "😕", "🙃", "🤑", "😲", "🙁", "😖", "😞", "😟", "😤", "😢", "😭", "😦", "😧", "😨", "😩", "🤯", "😬", "😰", "😱", "🥵", "🥶", "😳", "🤪", "😵", "🥴", "😠", "😡", "🤬", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "😇", "🤠", "🤡", "🥳", "🥺", '🧐'];
+  const bombEmoji = "💣";
+
+  let players = [];
+  let currentPlayerIndex = 0;
+  let angle = 45; // Initial angle in degrees
+  let power = 50;   // Initial power (arbitrary scale)
+  let projectile = null; // {x, y, vx, vy}
+
+  function initializeMap() {
+    gameMap = [];
+      for (let y = 0; y < mapHeight; y++) {
+          gameMap[y] = [];
+          for (let x = 0; x < mapWidth; x++) {
+              gameMap[y][x] = (y < mapHeight * 2 / 3) ? 0 : 1;
+          }
+      }
+  }
+
+
+  function initializePlayers() {
+    const player1Emoji = playerEmojis[Math.floor(Math.random() * playerEmojis.length)];
+    const player2Emoji = playerEmojis[Math.floor(Math.random() * playerEmojis.length)];
+    const fontSize = getFontSize();
+
+    players = [
+      { x: 20, y: 0, emoji: player1Emoji, score: 0 }, // Initialize y, will be set below
+      { x: mapWidth - 20, y: 0, emoji: player2Emoji, score: 0 } // Initialize y, will be set below
+    ];
+
+    // Get ground level *before* adjusting for text height
+    players[0].y = getGroundLevel(players[0].x);
+    players[1].y = getGroundLevel(players[1].x);
+
+    // *Now* adjust for text height, using the correct fontSize
+    players[0].y -= measureText(players[0].emoji, fontSize).height;
+    players[1].y -= measureText(players[1].emoji, fontSize).height;
+
+    console.log("Player 1:", players[0]);  // Debugging: Check player positions
+    console.log("Player 2:", players[1]);
+  }
+
+  function getGroundLevel(x) {
+        for (let y = 0; y < mapHeight; y++) {
+            if (gameMap[y][x] === 1) {
+                return y;
+            }
+        }
+        return mapHeight; // Should never really get here if there's ground.
+  }
+    function measureText(text, fontSize) {
+        ctx.font = `${fontSize}px sans-serif`;  // Use template literal
+        return ctx.measureText(text);
+    }
+
+
+  function getFontSize(){
+    return Math.max(12, mapHeight / 10); //scale font to map
+  }
+
+  function drawMap() {
+     const scaleX = canvas.width / mapWidth;
+     const scaleY = canvas.height / mapHeight;
+    for (let y = 0; y < mapHeight; y++) {
+      for (let x = 0; x < mapWidth; x++) {
+        ctx.fillStyle = gameMap[y][x] === 0 ? 'skyblue' : 'brown';
+        ctx.fillRect(x * scaleX, y * scaleY, scaleX, scaleY);
+      }
+    }
+  }
+
+function drawPlayers() {
+    const fontSize = getFontSize();
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textBaseline = 'bottom'; // Crucial: Draw text from the bottom up
+
+    const scaleX = canvas.width / mapWidth;
+    const scaleY = canvas.height / mapHeight;
+
+    for (const player of players) {
+        ctx.fillText(player.emoji, player.x * scaleX, player.y * scaleY);
+    }
+}
+
+    function drawArc() {
+        const currentPlayer = players[currentPlayerIndex];
+        const fontSize = getFontSize();
+        ctx.font = `${fontSize}px sans-serif`;
+        const textMetrics = ctx.measureText(currentPlayer.emoji);
+
+        const scaleX = canvas.width / mapWidth;
+        const scaleY = canvas.height/ mapHeight;
+
+
+        const barrelLength = 20; // Arbitrary length of the "gun barrel"
+        const angleRad = angle * Math.PI / 180;
+
+        const startX = currentPlayer.x * scaleX + textMetrics.width / 2 ;
+        const startY = currentPlayer.y * scaleY; //emoji is drawn from the bottom
+        const endX = startX + barrelLength * Math.cos(angleRad);
+        const endY = startY - barrelLength * Math.sin(angleRad);  // Negative because y increases downwards
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+
+    function drawProjectile() {
+      if (!projectile) return;
+      const fontSize = getFontSize();
+      const scaleX = canvas.width / mapWidth;
+      const scaleY = canvas.height / mapHeight;
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.fillText(bombEmoji, projectile.x * scaleX, projectile.y * scaleY);
+    }
+
+
+    function updateProjectile(deltaTime) {
+        if (!projectile) return;
+
+        const gravity = 9.8 * 2.5;  // m/s^2, adjust for game scale and speed
+      
+        projectile.x += projectile.vx * deltaTime;
+        projectile.vy += gravity * deltaTime;
+        projectile.y += projectile.vy * deltaTime;
+
+
+        // Check for collisions
+        if (projectile.y >= mapHeight || projectile.x <0 || projectile.x >= mapWidth) { //out of bounds.
+            projectile = null;
+            switchPlayer();
+            return;
+        }
+                // Check map collisions (ground)
+        const mapX = Math.floor(projectile.x);
+        const mapY = Math.floor(projectile.y);
+
+        if (mapX >= 0 && mapX < mapWidth && mapY >= 0 && mapY < mapHeight) {
+            if(gameMap[mapY][mapX] === 1) {
+                projectile = null;
+                switchPlayer();
+                return;
+            }
+        }
+
+
+        // Check for player hits.  Could be moved to separate function.
+      for (let i = 0; i < players.length; i++) {
+            if (i === currentPlayerIndex) continue; // Don't check against self.
+
+          const player = players[i];
+          const fontSize = getFontSize();
+          const playerWidth =  measureText(player.emoji, fontSize).width / (canvas.width / mapWidth);
+          const playerHeight = fontSize / (canvas.height/mapHeight);
+
+          // Simple AABB collision check
+          if (projectile.x + (measureText(bombEmoji,fontSize).width / (canvas.width/mapWidth)) > player.x &&
+              projectile.x < player.x + playerWidth &&
+              projectile.y + fontSize/(canvas.height/mapHeight) > player.y &&
+              projectile.y < player.y + playerHeight
+              ) {
+
+                // Handle hit (e.g., end game, decrease player health, etc.)
+                alert(`Player ${currentPlayerIndex + 1} wins!`);
+                resetGame(); //Simple reset.
+                return;
+            }
+        }
+    }
+
+
+    function switchPlayer() {
+        currentPlayerIndex = 1 - currentPlayerIndex; // Toggles between 0 and 1
+        angle = 45;
+        power = 50; //reset controls
+    }
+
+    function resetGame() {
+        initializeMap();
+        initializePlayers();
+        currentPlayerIndex = 0;
+        projectile = null;
+    }
+
+  function gameLoop(timestamp) {
+    const deltaTime = (timestamp - lastFrameTime) / 1000; // Convert to seconds
+    lastFrameTime = timestamp;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawMap();
+    drawPlayers();
+    drawArc();
+    drawProjectile();
+    updateProjectile(deltaTime);
+
+    requestAnimationFrame(gameLoop);
+  }
+
+    let lastFrameTime = 0;
+
+    document.addEventListener('keydown', (event) => {
+    if (projectile) return; // Don't allow input while projectile is in flight
+
+    const angleIncrement = 5; // Change angle by 5 degrees
+    const powerIncrement = 5; // Change power by 5
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        angle += angleIncrement;
+        break;
+      case 'ArrowRight':
+        angle -= angleIncrement;
+        break;
+      case 'ArrowUp':
+        power = Math.min(100, power + powerIncrement); // Cap power at 100
+        break;
+      case 'ArrowDown':
+        power = Math.max(0, power - powerIncrement);   // Prevent power from going negative
+        break;
+      case ' ': // Spacebar
+            if (!projectile) { // Only shoot if there isn't already a projectile.
+                const currentPlayer = players[currentPlayerIndex];
+                const angleRad = angle * Math.PI / 180;
+                const fontSize = getFontSize();
+                const initialVelocity = power * 0.2; // Adjust multiplier as needed
+
+                projectile = {
+                    x: currentPlayer.x + (measureText(currentPlayer.emoji, fontSize).width / (canvas.width/mapWidth) / 2),
+                    y: currentPlayer.y, //start at baseline of emoji
+                    vx: initialVelocity * Math.cos(angleRad),
+                    vy: -initialVelocity * Math.sin(angleRad) // Negative because y-axis is inverted
+                };
+            }
+        break;
+    }
+
+    // Keep angle within reasonable bounds
+    angle = Math.max(0, Math.min(180, angle));
+  });
+
+    initializeMap();
+  initializePlayers();
+  requestAnimationFrame(gameLoop);
+
+</script>
+
+</body>
+</html>

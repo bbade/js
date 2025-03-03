@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Roguelike</title>
+  <style>
+    body {
+      background-color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    canvas {
+      border: 1px solid white;
+    }
+    #output {
+      color: white;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="output"></div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const output = document.getElementById('output');
+
+    const TILE_SIZE = 24;
+    const BOARD_WIDTH = 20;
+    const BOARD_HEIGHT = 15;
+    const FLOOR_PERCENTAGE = 0.75;
+    const WATER_PERCENTAGE = 0.05;
+
+    canvas.width = TILE_SIZE * BOARD_WIDTH;
+    canvas.height = TILE_SIZE * BOARD_HEIGHT;
+
+    // Tile Types
+    const TileType = {
+        WALL: { isWalkable: false, character: '#', fgColor: 'gray', bgColor: 'black' },
+        FLOOR: { isWalkable: true, character: '.', fgColor: 'lightgray', bgColor: 'black' },
+        WATER: { isWalkable: false, character: '~', fgColor: 'blue', bgColor: 'darkblue' },
+    };
+
+    // --- Helper Functions ---
+    function drawText(ctx, text, x, y, color, alignment = "center", baseline = "middle") {
+        ctx.fillStyle = color;
+        ctx.font = `${TILE_SIZE}px monospace`;
+        ctx.textAlign = alignment;
+        ctx.textBaseline = baseline;
+        ctx.fillText(text, x, y);
+    }
+
+    function getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min) + min);
+    }
+
+    class Tile {
+      constructor(type) {
+          this.type = type;
+          this.isWalkable = type.isWalkable;
+      }
+
+        draw(ctx, x, y) {
+          ctx.fillStyle = this.type.bgColor;
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          drawText(ctx, this.type.character, x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, this.type.fgColor);
+        }
+    }
+
+    class Board {
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.tiles = [];
+        this.initialize();
+      }
+
+      initialize() {
+        // Initial random distribution.
+        for (let y = 0; y < this.height; y++) {
+          this.tiles[y] = [];
+          for (let x = 0; x < this.width; x++) {
+            // Corrected tile assignment
+            const rand = Math.random();
+            if (rand < WATER_PERCENTAGE) {
+                this.tiles[y][x] = new Tile(TileType.WATER);
+            } else if (rand < WATER_PERCENTAGE + FLOOR_PERCENTAGE) {
+                this.tiles[y][x] = new Tile(TileType.FLOOR);
+            } else {
+                this.tiles[y][x] = new Tile(TileType.WALL);
+            }
+          }
+        }
+
+        // Ensure connectivity and adjust floor percentage.
+        this.ensureConnectivity();
+        this.adjustFloorPercentage();
+      }
+
+      ensureConnectivity() {
+        const startX = getRandomInt(0, this.width);
+        const startY = getRandomInt(0, this.height);
+        this.fill(startX, startY, TileType.WALL, TileType.FLOOR);
+      }
+
+      fill(x, y, targetType, replacementType) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height || this.tiles[y][x].type !== targetType) {
+            return;
+        }
+        this.tiles[y][x] = new Tile(replacementType);
+        this.fill(x + 1, y, targetType, replacementType);
+        this.fill(x - 1, y, targetType, replacementType);
+        this.fill(x, y + 1, targetType, replacementType);
+        this.fill(x, y - 1, targetType, replacementType);
+      }
+
+      adjustFloorPercentage() {
+        let floorCount = this.tiles.flat().filter(tile => tile.type === TileType.FLOOR).length;
+        let targetFloorCount = Math.floor(this.width * this.height * FLOOR_PERCENTAGE);
+        let diff = targetFloorCount - floorCount;
+
+        while (diff !== 0) {
+          let x = getRandomInt(0, this.width);
+          let y = getRandomInt(0, this.height);
+
+          if (diff > 0 && this.tiles[y][x].type === TileType.WALL) {
+            this.tiles[y][x] = new Tile(TileType.FLOOR);
+            diff--;
+          } else if (diff < 0 && this.tiles[y][x].type === TileType.FLOOR) {
+            this.tiles[y][x] = new Tile(TileType.WALL);
+            diff++;
+          }
+        }
+      }
+
+      getTile(x, y) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+          return null;
+        }
+        return this.tiles[y][x];
+      }
+
+      draw(ctx) {
+        for (let y = 0; y < this.height; y++) {
+          for (let x = 0; x < this.width; x++) {
+            this.tiles[y][x].draw(ctx, x, y);
+          }
+        }
+      }
+    }
+
+    class Player {
+      constructor(x, y, board) {
+        this.x = x;
+        this.y = y;
+        this.board = board;
+      }
+
+      draw(ctx) {
+        drawText(ctx, "@", this.x * TILE_SIZE + TILE_SIZE / 2, this.y * TILE_SIZE + TILE_SIZE / 2, "white");
+      }
+
+      move(dx, dy) {
+        const newX = this.x + dx;
+        const newY = this.y + dy;
+        const nextTile = this.board.getTile(newX, newY);
+        if (nextTile?.isWalkable) {
+          this.x = newX;
+          this.y = newY;
+          drawGame();
+          output.textContent = `Player at: (${this.x}, ${this.y})`;
+        } else {
+          output.textContent = "Cannot move there";
+        }
+      }
+    }
+
+    // --- Game Setup ---
+    const board = new Board(BOARD_WIDTH, BOARD_HEIGHT);
+
+    // Find a walkable starting position.
+    const player = new Player(0, 0, board); // Initialize in a dummy location
+    let foundStart = false;
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      for (let y = 0; y < BOARD_HEIGHT; y++) {
+        if (board.getTile(x, y).isWalkable) {
+          player.x = x;
+          player.y = y;
+          foundStart = true;
+          break;
+        }
+      }
+      if (foundStart) break;
+    }
+
+    function drawGame() {
+      board.draw(ctx);
+      player.draw(ctx);
+    }
+
+    // --- Input Handling ---
+    document.addEventListener('keydown', (event) => {
+      const keyActions = {
+        'h': () => player.move(-1, 0),
+        'j': () => player.move(0, 1),
+        'k': () => player.move(0, -1),
+        'l': () => player.move(1, 0),
+      };
+
+      const action = keyActions[event.key];
+      if (action) {
+        action();
+      }
+    });
+
+    // --- Initial Draw ---
+    drawGame();
+    output.textContent = "Game Started";
+  </script>
+</body>
+</html>

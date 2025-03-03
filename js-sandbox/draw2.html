@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Texture Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #textureCanvas {
+            border: 1px solid black;
+            /* image-rendering options for crisp scaling */
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+    </style>
+</head>
+<body>
+    <h1>Procedural Texture Generator</h1>
+    <label for="textureSelect">Select Texture:</label>
+    <select id="textureSelect" onchange="requestRedraw()">
+        </select>
+
+    <canvas id="textureCanvas" width="64" height="64"></canvas>
+
+    <script>
+        // --- Constants ---
+        const CONSTANTS = {
+            DISPLAY_WIDTH: 64,
+            DISPLAY_HEIGHT: 64,
+            OFFSCREEN_WIDTH: 32,
+            OFFSCREEN_HEIGHT: 32,
+            DEFAULT_TEXTURE: "Brick",
+        };
+
+        // --- Texture Definitions ---
+        const TEXTURE_FUNCTIONS = {
+            Grass: generateGrassTexture,
+            Brick: generateBrickTexture,
+            Stone: generateStoneTexture,
+            Water: generateWaterTexture,
+        };
+
+        // --- Texture Configs ---
+        const GRASS_CONFIG = {
+            grassColor1: [124, 252, 0],
+            grassColor2: [50, 205, 50],
+            bladeHeightVariation: 0.6,
+            density: 0.8,
+        };
+      const BRICK_CONFIG = {
+        baseBrickColor: [178, 34, 34],
+        colorVariance: 30,
+        brickWidth: 8,
+        brickHeight: 4,
+        mortarWidth: 2,
+        mortarColor: [200, 200, 200],
+      };
+        const STONE_CONFIG = {
+          stoneColor1: [105, 105, 105],
+          stoneColor2: [169, 169, 169],
+          stoneSize: 5,
+        };
+
+        const WATER_CONFIG = {
+          baseWaterColor: [40, 100, 200],
+          highlightColor: [100, 180, 255],
+          waveScaleX: 4,
+          waveScaleY: 8,
+        };
+
+
+        // --- Texture Generation Functions ---
+        function generateGrassTexture(ctx, config) {
+            const { OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT } = CONSTANTS;
+
+            for (let x = 0; x < OFFSCREEN_WIDTH; x++) {
+                for (let y = 0; y < OFFSCREEN_HEIGHT; y++) {
+                    const color = (Math.random() < config.density)
+                        ? config.grassColor1
+                        : config.grassColor2;
+
+                    const heightVariation = (1 - config.bladeHeightVariation / 2) + Math.random() * config.bladeHeightVariation;
+                    const adjustedColor = color.map(c => Math.floor(c * heightVariation));
+                    ctx.fillStyle = `rgb(${adjustedColor[0]}, ${adjustedColor[1]}, ${adjustedColor[2]})`;
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+        function generateBrickTexture(ctx, config) {
+            const { OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT } = CONSTANTS;
+            const { brickWidth, brickHeight, mortarWidth, baseBrickColor, colorVariance, mortarColor } = config;
+
+            const totalBrickWidth = brickWidth + mortarWidth;
+            const totalBrickHeight = brickHeight + mortarWidth;
+
+            // Calculate the number of *full* rows and columns, plus one extra
+            // to account for partial rows/columns at the edges that need to wrap.
+            const rows = Math.floor(OFFSCREEN_HEIGHT / totalBrickHeight) + 1;  // +1 for wrapping
+            const cols = Math.floor(OFFSCREEN_WIDTH / totalBrickWidth) + 1;  // +1 for wrapping
+
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const offset = (row % 2 === 0) ? 0 : totalBrickWidth / 2; // Correct offset calculation.
+                    let brickX = (col * totalBrickWidth + offset) % OFFSCREEN_WIDTH; // Wrap X
+                    let brickY = (row * totalBrickHeight) % OFFSCREEN_HEIGHT; // Wrap Y
+
+
+                    const color = baseBrickColor.map(c => {
+                        const variation = Math.floor((Math.random() - 0.5) * 2 * colorVariance);
+                        return Math.max(0, Math.min(255, c + variation));
+                    });
+
+                    // Draw Mortar (only in the brick area, not the whole canvas)
+                    ctx.fillStyle = `rgb(${mortarColor[0]}, ${mortarColor[1]}, ${mortarColor[2]})`;
+                    ctx.fillRect(brickX, brickY, totalBrickWidth, totalBrickHeight);
+
+
+                    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+
+                    // Handle Horizontal Wrapping (Corrected)
+                    if (brickX + brickWidth > OFFSCREEN_WIDTH) {
+                        const width1 = OFFSCREEN_WIDTH - brickX;
+                        const width2 = brickWidth - width1;
+                        ctx.fillRect(brickX + mortarWidth/2, brickY + mortarWidth/2, width1, brickHeight);
+                        ctx.fillRect(mortarWidth/2, brickY + mortarWidth/2, width2, brickHeight); // wrap around
+                    } else {
+                        ctx.fillRect(brickX + mortarWidth/2, brickY + mortarWidth/2, brickWidth, brickHeight);
+                    }
+
+
+                }
+            }
+        }
+
+        function generateStoneTexture(ctx, config) {
+             const { OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT } = CONSTANTS;
+
+             for (let y = 0; y < OFFSCREEN_HEIGHT; y += config.stoneSize) {
+              for (let x = 0; x < OFFSCREEN_WIDTH; x += config.stoneSize) {
+                const stoneColor = Math.random() > 0.5 ? config.stoneColor1 : config.stoneColor2;
+                ctx.fillStyle = `rgb(${stoneColor[0]}, ${stoneColor[1]}, ${stoneColor[2]})`;
+                ctx.fillRect(x, y, config.stoneSize, config.stoneSize);
+
+                const xOffset = (Math.random()-.5) * config.stoneSize * .4;
+                const yOffset = (Math.random()-.5) * config.stoneSize * .4;
+                ctx.fillRect(x + xOffset, y + yOffset, config.stoneSize, config.stoneSize);
+
+              }
+            }
+        }
+
+        function generateWaterTexture(ctx, config) {
+            const { OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT } = CONSTANTS;
+            const { baseWaterColor, highlightColor, waveScaleX, waveScaleY } = config;
+
+            for (let x = 0; x < OFFSCREEN_WIDTH; x++) {
+                for (let y = 0; y < OFFSCREEN_HEIGHT; y++) {
+                    const noiseValue = (
+                        Math.sin(x / waveScaleX) +
+                        Math.cos(y / waveScaleY) +
+                        Math.sin((x + y) / (waveScaleX + waveScaleY))
+                      ) / 3;
+
+                    const t = (noiseValue + 1) / 2;
+
+                    const color = baseWaterColor.map((baseC, i) => {
+                      const highlightC = highlightColor[i];
+                      return Math.floor(baseC * (1 - t) + highlightC * t);
+                    });
+
+                    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+
+        // --- UI Update Functions ---
+
+        function drawTexture(textureName) {
+            const displayCanvas = document.getElementById('textureCanvas');
+            const displayCtx = displayCanvas.getContext('2d');
+            displayCtx.imageSmoothingEnabled = false;
+
+            const offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = CONSTANTS.OFFSCREEN_WIDTH;
+            offscreenCanvas.height = CONSTANTS.OFFSCREEN_HEIGHT;
+            const offscreenCtx = offscreenCanvas.getContext('2d');
+            offscreenCtx.imageSmoothingEnabled = false;
+
+            const textureFunc = TEXTURE_FUNCTIONS[textureName];
+
+            if (textureFunc) {
+                offscreenCtx.clearRect(0, 0, CONSTANTS.OFFSCREEN_WIDTH, CONSTANTS.OFFSCREEN_HEIGHT);
+                if (textureName == "Grass") {
+                    textureFunc(offscreenCtx, GRASS_CONFIG);
+                } else if (textureName == "Brick") {
+                    textureFunc(offscreenCtx, BRICK_CONFIG);
+                } else if (textureName == "Stone") {
+                    textureFunc(offscreenCtx, STONE_CONFIG);
+                } else if (textureName == "Water") {
+                    textureFunc(offscreenCtx, WATER_CONFIG);
+                } else {
+                    console.error("Texture Function Not Found For: " + textureName)
+                }
+
+                const repeatX = CONSTANTS.DISPLAY_WIDTH / CONSTANTS.OFFSCREEN_WIDTH;
+                const repeatY = CONSTANTS.DISPLAY_HEIGHT / CONSTANTS.OFFSCREEN_HEIGHT;
+
+                displayCtx.clearRect(0, 0, CONSTANTS.DISPLAY_WIDTH, CONSTANTS.DISPLAY_HEIGHT);
+
+                for (let x = 0; x < repeatX; x++) {
+                    for (let y = 0; y < repeatY; y++) {
+                        displayCtx.drawImage(
+                            offscreenCanvas,
+                            0, 0, CONSTANTS.OFFSCREEN_WIDTH, CONSTANTS.OFFSCREEN_HEIGHT,
+                            x * CONSTANTS.OFFSCREEN_WIDTH, y * CONSTANTS.OFFSCREEN_HEIGHT, CONSTANTS.OFFSCREEN_WIDTH, CONSTANTS.OFFSCREEN_HEIGHT
+                        );
+                    }
+                }
+
+            } else {
+                console.error("Invalid texture name:", textureName);
+            }
+        }
+
+        // --- Event Handling ---
+
+        function requestRedraw()
+        {
+          const selectedTexture = document.getElementById('textureSelect').value;
+          drawTexture(selectedTexture);
+        }
+
+        // --- Initialization ---
+
+        function populateDropdown() {
+            const selectElement = document.getElementById('textureSelect');
+            for (const textureName in TEXTURE_FUNCTIONS) {
+                const option = document.createElement('option');
+                option.value = textureName;
+                option.textContent = textureName;
+                selectElement.appendChild(option);
+            }
+          selectElement.value = CONSTANTS.DEFAULT_TEXTURE;
+        }
+
+        function init() {
+            populateDropdown();
+            requestRedraw();
+        }
+
+        // --- Start the app ---
+        init();
+
+    </script>
+</body>
+</html>

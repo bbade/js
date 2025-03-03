@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Organic Roads (No River - JS)</title>
+<style>
+body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f0f0; }
+canvas { border: 1px solid black; }
+</style>
+</head>
+<body>
+
+<canvas id="cityCanvas" width="512" height="512"></canvas>
+
+<script>
+const canvas = document.getElementById('cityCanvas');
+const ctx = canvas.getContext('2d');
+const width = canvas.width;
+const height = canvas.height;
+
+// Configuration
+const numSeedRoads = 3;
+const roadExtendChance = 0.95;
+const roadBranchChance = 0.05;
+const maxRoadLength = 250;
+const minRoadLength = 75;
+const curveControlPointOffset = 100;
+const maxGrowthIterations = 150;
+
+// Data Structures
+let roads = [];
+let intersections = [];
+
+// --- Helper Functions ---
+
+function random(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+function findOrCreateIntersection(x, y) {
+    const tolerance = 10;
+    for (const intersection of intersections) {
+        if (Math.abs(intersection.x - x) < tolerance && Math.abs(intersection.y - y) < tolerance) {
+            return intersection;
+        }
+    }
+    const newIntersection = { x: x, y: y, roads: [] };
+    intersections.push(newIntersection);
+    return newIntersection;
+}
+
+// --- Road Generation ---
+
+function createInitialRoads() {
+    for (let i = 0; i < numSeedRoads; i++) {
+        const x1 = random(width * 0.1, width * 0.9);
+        const y1 = random(height * 0.1, height * 0.9);
+        let angle = random(0, 2 * Math.PI);
+        let length = random(minRoadLength, maxRoadLength);
+        let x2 = x1 + length * Math.cos(angle);
+        let y2 = y1 + length * Math.sin(angle);
+        x2 = Math.max(width * 0.1, Math.min(x2, width * 0.9));
+        y2 = Math.max(height * 0.1, Math.min(y2, height * 0.9));
+        const start = findOrCreateIntersection(x1, y1);
+        const end = findOrCreateIntersection(x2, y2);
+        addRoad(start, end, angle);
+    }
+}
+
+function addRoad(startIntersection, endIntersection, endAngle) {
+    for(const existingRoadId of startIntersection.roads)
+     {
+        const existingRoad = roads[existingRoadId];
+        if((existingRoad.start === startIntersection && existingRoad.end === endIntersection) || (existingRoad.end === startIntersection && existingRoad.start === endIntersection))
+            return;
+     }
+    const newRoad = {
+        start: startIntersection,
+        end: endIntersection,
+        endAngle: endAngle,
+        id: roads.length  //assign ID
+    };
+    roads.push(newRoad);
+    startIntersection.roads.push(newRoad.id);
+    endIntersection.roads.push(newRoad.id);
+}
+function growRoadNetwork() {
+    for (let i = 0; i < maxGrowthIterations; i++) {
+        if (roads.length === 0) return;
+        const roadIndex = Math.floor(random(0, roads.length));
+        const road = roads[roadIndex];
+        let x2, y2;
+
+        if (Math.random() < roadExtendChance) {
+            // Extend
+            let angle = road.endAngle + random(-Math.PI / 8, Math.PI / 8);
+            let length = random(minRoadLength, maxRoadLength);
+            x2 = road.end.x + length * Math.cos(angle);
+            y2 = road.end.y + length * Math.sin(angle);
+            x2 = Math.max(0, Math.min(x2, width));  // Simple bounds
+            y2 = Math.max(0, Math.min(y2, height));
+            const newEnd = findOrCreateIntersection(x2, y2);
+            addRoad(road.end, newEnd, angle);
+
+
+        } else if (Math.random() < roadBranchChance) {
+            // Branch
+            let angle = road.endAngle + random(-Math.PI / 4, Math.PI / 4);
+            let length = random(minRoadLength, maxRoadLength);
+            x2 = road.end.x + length * Math.cos(angle);
+            y2 = road.end.y + length * Math.sin(angle);
+            x2 = Math.max(0, Math.min(x2, width));
+            y2 = Math.max(0, Math.min(y2, height));
+            const newEnd = findOrCreateIntersection(x2, y2);
+            addRoad(road.end, newEnd, angle);
+        }
+    }
+}
+
+// --- Drawing Functions ---
+
+function drawRoads() {
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    for (const road of roads) {
+        let cp1x = road.start.x + curveControlPointOffset * Math.cos(road.endAngle - Math.PI);
+        let cp1y = road.start.y + curveControlPointOffset * Math.sin(road.endAngle - Math.PI);
+        let cp2x = road.end.x + curveControlPointOffset * Math.cos(road.endAngle);
+        let cp2y = road.end.y + curveControlPointOffset * Math.sin(road.endAngle);
+        ctx.beginPath();
+        ctx.moveTo(road.start.x, road.start.y);
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, road.end.x, road.end.y);
+        ctx.stroke();
+    }
+}
+
+// --- Main Execution ---
+createInitialRoads();
+growRoadNetwork();
+drawRoads();
+</script>
+
+</body>
+</html>

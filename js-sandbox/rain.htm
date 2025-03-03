@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Particle Systems</title>
+  <style>
+    body {
+      background-color: #AAA;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100%;
+    }
+    
+    canvas {
+      transform: scale(1.5);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border-radius: 16px; /* Rounded corners */
+
+    }
+    
+    #log {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: black;
+    }
+    
+    #system-select {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="canvas-container">
+    <canvas id="canvas" width="128" height="64"></canvas>
+  </div>
+  
+  <div id="log"></div>
+  
+  <select id="system-select">
+    <option value="rain">Rain</option>
+    <option value="fire">Fire</option>
+  </select>
+  
+  <script>
+    
+    const debug = document.getElementById("log");
+    const systemSelect = document.getElementById("system-select");
+    
+    
+    // --- Configuration ---
+    const config = {
+      particleSize: 2,
+      fps: 30,
+      rain: {
+        numParticles: 30,
+        minSpeed: 2,
+        maxSpeed: 4,
+      },
+      fire: {  //Separate config for fire
+        numParticles: 50,
+        minSpeed: 0.5,
+        maxSpeed: 1.5,
+        spawnXVariance: 5, // How much they can vary from the center
+        decay: 0.995
+      }
+    };
+    
+    
+    // ---- Text Drawing ----
+    function drawText(context, x, y, w, h, string, color) {
+      // Determine a suitable small font size.  Start with a reasonable guess
+      // based on the height, and adjust as needed.  We want a monospace font.
+      
+      //Good font size for 64x128 is 8px.
+      const fontSize = 11;
+      context.font = `${fontSize}px monospace`;
+      
+      context.fillStyle = color;
+      context.textBaseline = "top"; // Important for consistent positioning
+      
+      // Disable anti-aliasing (this is the crucial part)
+      context.imageSmoothingEnabled = false;  // Standard, modern browsers
+      context.mozImageSmoothingEnabled = false; // Firefox
+      context.webkitImageSmoothingEnabled = false; // Safari (older versions)
+      context.msImageSmoothingEnabled = false; // IE/Edge
+      
+      //Split lines
+      const lines = string.split('\n');
+      let currentY = y;
+      
+      for (const line of lines){
+        context.fillText(line, x, currentY, w); // Use maxWidth (w) for wrapping
+        currentY += fontSize + 2; //Adjust for next line.
+      }
+    }
+    
+    // --- RainSystem Class ---
+    class RainSystem {
+      constructor(config, canvas) {
+        this.config = config;
+        this.canvas = canvas;
+        this.particles = [];
+        this.palette = [
+        "#9dd1ff",
+        "#82b7f5",
+        "#679deb",
+        "#4c83d2",
+        "#5588b9",
+        "#365fa0",
+        "#3a4fE7",
+        "#225fBe",
+        "#4255CA",
+        "#1155Fc",
+        ];
+      }
+      
+      getPalette() {
+        return this.palette;
+      }
+      
+      createParticle() {
+        return {
+          x: randomRange(0, this.canvas.width),
+          y: randomRange(0, this.canvas.height),
+          speed: randomRange(this.config.minSpeed, this.config.maxSpeed),
+          color: this.randomPaletteColor(),
+        };
+      }
+      
+      randomPaletteColor() {
+        return this.palette[Math.floor(Math.random() * this.palette.length)];
+      }
+      
+      updateParticle(particle) {
+        particle.y += particle.speed;
+        
+        if (particle.y > this.canvas.height) {
+          particle.x = randomRange(0, this.canvas.width);
+          particle.y =  0 - config.particleSize;
+          particle.speed = randomRange(this.config.minSpeed, this.config.maxSpeed);
+          particle.color = this.randomPaletteColor();
+        }
+      }
+      
+      initializeParticles() {
+        this.particles = [];
+        for (let i = 0; i < this.config.numParticles; i++) {
+          this.particles.push(this.createParticle());
+        }
+      }
+
+      drawOverlay(context) {
+        drawText(context, 16, 24, 116, 50, "Rain\n15C", "#e6efff");
+      }
+    }
+    
+    // --- FireSystem Class ---
+    class FireSystem {
+      constructor(config, canvas) {
+        this.config = config;
+        this.canvas = canvas;
+        this.particles = [];
+      }
+      
+      getPalette() {
+        return null; // Fire system doesn't have a fixed palette
+      }
+      
+      createParticle() {
+        const spawnX = this.canvas.width / 2 + randomRange(-this.config.spawnXVariance, this.config.spawnXVariance);
+        return {
+          x: spawnX,
+          y: this.canvas.height, // Start at the bottom
+          speedY: -randomRange(this.config.minSpeed, this.config.maxSpeed), // Negative for upward motion
+          color: this.getColor(this.canvas.height), // Initial color
+        };
+      }
+
+      drawOverlay() {} // none
+      
+      getColor(y) {
+        // Normalize y position (0 at top, 1 at bottom)
+        const normalizedY = y / this.canvas.height;
+        
+        let r, g, b;
+        
+        if (normalizedY > 0.8) {
+          // whiteish-yellow
+          r = 255;
+          g = 255;
+          b = Math.floor(180 + (1 - normalizedY) * 75 *5); //Some blue as we go up
+          
+        } else if (normalizedY > 0.6) {
+          // Yellow to orange
+          r = 255;
+          g = Math.floor(255 - (0.8 - normalizedY) * 255 * 5);
+          b = 0;
+        } else if (normalizedY > 0.4) {
+          // Orange to red
+          r = 255;
+          g = Math.floor(150 - (0.6-normalizedY) * 150 * 5); // Reduce green faster
+          b = 0;
+          
+        } else if (normalizedY > 0.2) {
+          // Red to dark grey
+          r = Math.floor(200 - (0.4 - normalizedY) * 200 * 5);
+          g = 0;
+          b = 0;
+        }
+        else {
+          // greyish-black
+          r = Math.floor(50 - normalizedY * 50 * 5);
+          g = Math.floor(50 - normalizedY * 50 * 5);
+          b = Math.floor(50 - normalizedY * 50 * 5);
+          
+        }
+        
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      
+      
+      updateParticle(particle) {
+        particle.y += particle.speedY;
+        particle.speedY *= this.config.decay; // Apply decay to upward speed
+        
+        //Small random horizontal movement
+        particle.x += randomRange(-0.2, 0.2);
+        
+        if (particle.y < 0) {
+          // Recycle particle
+          particle.y = this.canvas.height;
+          particle.x = this.canvas.width / 2 + randomRange(-this.config.spawnXVariance, this.config.spawnXVariance);
+          particle.speedY = -randomRange(this.config.minSpeed, this.config.maxSpeed);
+        }
+        particle.color = this.getColor(particle.y); //Update the color
+      }
+      
+      
+      initializeParticles() {
+        this.particles = [];
+        for (let i = 0; i < this.config.numParticles; i++) {
+          this.particles.push(this.createParticle());
+        }
+      }
+    }
+    
+    
+    
+    // --- Setup Canvases ---
+    const canvas = document.getElementById('canvas');
+    const mainCtx = canvas.getContext('2d', { alpha: false });
+    
+    // --- Helper Functions ---
+    function randomRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+    
+    function inBounds(particle, canvas) {
+      return (
+      particle.x >= 0 &&
+      particle.x <= canvas.width &&
+      particle.y >= 0 &&
+      particle.y <= canvas.height
+      );
+    }
+    
+    function drawParticle(ctx, particle, particleSize) {
+      if (!inBounds(particle, ctx.canvas)) {
+        return false;
+      }
+      ctx.fillStyle = particle.color;
+      ctx.fillRect(
+      Math.floor(particle.x),
+      Math.floor(particle.y),
+      particleSize,
+      particleSize
+      );
+      return true;
+    }
+    
+    // --- Rendering ---
+    
+    // --- Instances of Systems ---
+    let rainSystem;
+    let fireSystem;
+    let activeSystem; // Keep track of the currently active system
+    let animationInterval;
+    
+    function update() {
+      if (activeSystem) {
+        activeSystem.particles.forEach(particle => activeSystem.updateParticle(particle));
+      }
+    }
+    
+    
+    function renderParticles() {
+      var numDrawn = 0;
+      mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+      if (activeSystem) {
+        activeSystem.particles.forEach(p => 
+        vis = drawParticle(mainCtx, p, config.particleSize));
+        if (vis) {
+          numDrawn++;
+        }
+      }
+      // console.log(numDrawn + " particles drawn");
+    }
+    
+    
+    function doFrame() {
+      update();
+      renderParticles();
+      activeSystem.drawOverlay(mainCtx)
+    }
+    
+    
+    function startSystem(systemType) {
+      // Clear any existing interval
+      clearInterval(animationInterval);
+      
+      mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (systemType === 'rain') {
+        if (!rainSystem) { // Create only if it doesn't exist
+        rainSystem = new RainSystem(config.rain, canvas);
+      }
+      activeSystem = rainSystem;
+      activeSystem.initializeParticles();
+      
+    } else if (systemType === 'fire') {
+      if (!fireSystem) { //Create if it doesn't exist
+      fireSystem = new FireSystem(config.fire, canvas);
+    }
+    activeSystem = fireSystem;
+    activeSystem.initializeParticles();
+  }
+  
+  // Start the animation loop
+  animationInterval = setInterval(doFrame, 1000 / config.fps);
+}
+
+
+
+// --- Initialization & Main Loop ---
+
+function init() {
+  
+  mainCtx.fillStyle = "#000";
+  mainCtx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Start with rain as default
+  startSystem(systemSelect.value);
+  
+  // Event listener for dropdown change
+  systemSelect.addEventListener('change', () => {
+    startSystem(systemSelect.value);
+  });
+}
+
+
+init();
+
+
+</script>
+
+</body>
+
+</html>
