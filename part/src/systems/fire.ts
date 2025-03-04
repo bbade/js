@@ -1,4 +1,4 @@
-import { Particle, SystemConfig, ParticleSystem, Color } from './interfaces';
+import { Particle, SystemConfig, ParticleSystem, Color } from '../interfaces';
 
 
 

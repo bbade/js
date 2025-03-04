@@ -27,6 +27,10 @@ export class Particle {
         return new Particle(args.x, args.y, args.v, args.color, args.size);
     }
 
+    static create() {
+        return new Particle(0, 0, new Vec2(0,0), ,  null, )
+    }
+
     init(x: number, y: number, v: Vec2, color: Color, size: number | null = null): Particle {
         this.x = x;
         this.y = y;
@@ -38,6 +42,11 @@ export class Particle {
         this.ageMs = 0;
 
         return this;
+    }
+
+    incAge(deltaT: number) {
+        this.ageMs += deltaT;
+        this.age+=1; 
     }
 }
 

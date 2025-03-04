@@ -1,8 +1,8 @@
-import { RainSystem } from './rain';
-import { FireSystem } from './fire';
+import { RainSystem } from './systems/rain';
+import { FireSystem } from './systems/fire';
 import { Particle, SystemConfig, ParticleSystem } from './interfaces';
 import { GenericSystem } from './generic';
-import { RandomSys, Fountain } from './generic-systems/fountain';
+import { RandomSys, Fountain } from './systems/generic-systems';
 
 
 // --- Configuration ---
