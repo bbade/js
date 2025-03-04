@@ -1,4 +1,4 @@
-import { Color, ParticleSystem } from '../interfaces'
+import { Color, ParticleSystem, Rect } from '../interfaces'
 import { Mouse } from '../main';
 import { isOutOfBounds } from '../math';
 import { Particle } from "../Particle";
@@ -21,14 +21,15 @@ const spec = {
 export class GravSystem implements ParticleSystem, ParticleConfigure {
 
     particles: Particle[] = [];
-    canvas: HTMLCanvasElement;
+
+    bounds: Rect; // normalized 0,0, w, h where W and H are <= 1
 
     readonly gravity: Vec2 = new Vec2(0, spec.G); // 100 px/sec down, with positive being down
 
 
 
-    constructor(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
+    constructor(bounds: Rect) {
+        this.bounds = bounds;
     }
 
 
@@ -59,14 +60,14 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
         const lifeLeft = 1 - particle.ageMs / spec.maxAgeMs;
         particle.color.g= Math.max(100, Math.floor(255*lifeLeft));
 
-        if(particle.color.g <= 30 || isOutOfBounds(particle.p, this.canvas) || particle.ageMs > spec.maxAgeMs ) {
+        if(particle.color.g <= 30 || isOutOfBounds(particle.p, this.bounds) || particle.ageMs > spec.maxAgeMs ) {
             this.initializeParticle(particle);
             return;
         }
 
         const pos = particle.p;
 
-        if (pos.y > this.canvas.height - particle.size) {
+        if (pos.y > this.bounds.h - particle.size) {
             // bounce
             particle.v = new Vec2(
                 particle.v.x, 
@@ -90,8 +91,8 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
     }
 
     setInitialPosition(particle: Particle): void {
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.bounds.w;
+        const h = this.bounds.h;
 
         let position: Vec2;
         do {

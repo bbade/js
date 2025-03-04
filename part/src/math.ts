@@ -3,30 +3,37 @@ import { Vec2 } from "./vec2";
 
 // Helper function (moved here to keep things self-contained)
 export function randomRange(min: number, max: number): number {
-    return Math.random() * (max - min) + min;
-  }
+  return Math.random() * (max - min) + min;
+}
 
-  export function randomPoint(
-    normalizedBounds: Rect, 
-    canvasW: number, 
-    canvasH: number): Vec2
-    {
+export function randomPoint(
+  normalizedBounds: Rect, 
+  canvasW: number, 
+  canvasH: number): Vec2
+  {
     return new Vec2(
-        randomRange(normalizedBounds.x, normalizedBounds.x1) * canvasW, 
-        randomRange(normalizedBounds.y, normalizedBounds.y1) * canvasH
+      randomRange(normalizedBounds.x, normalizedBounds.x1) * canvasW, 
+      randomRange(normalizedBounds.y, normalizedBounds.y1) * canvasH
     );
   }
-
-
-  export function isOutOfBounds(particle: Vec2, canvas: HTMLCanvasElement): boolean {
+  
+  export function normalizedRect(canvas: HTMLCanvasElement): Rect {
+    const m = Math.max(canvas.width, canvas.height);
+    return new Rect(
+      0,
+      0,
+      canvas.width / m,
+      canvas.height / m
+    );
+  }
+  
+  
+  export function isOutOfBounds(particle: Vec2, rect: Rect): boolean {
     return (
-        particle.x < 0 ||
-        particle.x > canvas.width ||
-        particle.y < 0 ||
-        particle.y > canvas.height
+      particle.x < rect.x || particle.x > rect.x1 || particle.y < rect.y || particle.y > rect.y1
     );
   }
-
+  
   export function clamp(n: number, min: number, max: number): number {
     if (n < min) {
       return min;

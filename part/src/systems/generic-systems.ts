@@ -7,8 +7,8 @@ import { sub } from "../vec2";
 
 export class Fountain implements GenericSystemSpec {
     numParticles: number = 30;
-    minSpeed: Vec2 = new Vec2(-.2, -0.3);
-    maxSpeed: Vec2 = new Vec2(.2, -1);
+    minSpeed: Vec2 = new Vec2(-0.002, -0.003);
+    maxSpeed: Vec2 = new Vec2(0.002, -0.01);
     palette = [
         new Color(157, 209, 255),
         new Color(130, 183, 245),
@@ -23,22 +23,19 @@ export class Fountain implements GenericSystemSpec {
     ];
     minPSizePx: number = 1;
     maxPSizePx: number = 1;
-    spawnRectNorm: Rect = new Rect(.5, 1, 0, .01); // normalized
+    spawnRectNorm: Rect = new Rect(0.5, 1, 0, 0.01); // normalized
 
     updateParticle(particle: Particle, deltaT: number): void {
         particle.y += particle.v.y * deltaT;
         particle.x += particle.v.x * deltaT;
         particle.v.y += 0.0001 * deltaT; // down is positive
-
     }
-
-
 }
 
 export class RandomSys implements GenericSystemSpec {
     numParticles: number = 90;
-    minSpeed: Vec2 = new Vec2(-1, -1);
-    maxSpeed: Vec2 = new Vec2(1, 1);
+    minSpeed: Vec2 = new Vec2(-0.01, -0.01);
+    maxSpeed: Vec2 = new Vec2(0.01, 0.01);
     palette = [
         new Color(255, 51, 51),
         new Color(51, 255, 51),
@@ -81,4 +78,4 @@ export class RandomSys implements GenericSystemSpec {
 // todo: fireworks.
 
 // https://www.youtube.com/watch?v=jis1MC5Tm8k&ab_channel=mitxela simple particle fluid simulation where you shake it
-// maybe the one i write reacts to the mouse and is displaced by it. or attracted to it when it's in bounds. 
+// maybe the one i write reacts to the mouse and is displaced by it. or attracted to it when it's in bounds.

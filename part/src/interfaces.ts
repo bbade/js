@@ -57,7 +57,7 @@ export interface SystemConfig {
 
 export interface ParticleSystem {  //Common interface.
     particles: Particle[]; //All systems have particles
-    canvas: HTMLCanvasElement;
+    bounds: Rect; // normalize bounds
     initialize(): void;
     updateParticle(particle: Particle, deltaT:number): void;
     drawOverlay?(context: CanvasRenderingContext2D): void; //optional
