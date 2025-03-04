@@ -1,4 +1,5 @@
-import { Particle, SystemConfig, ParticleSystem, Color } from '../interfaces';
+import { SystemConfig, ParticleSystem, Color } from '../interfaces';
+import { Particle } from "../Particle";
 
 
 
@@ -134,7 +135,7 @@ export class FireSystem implements ParticleSystem {
     }
     
     
-    createParticles(): void {
+    initialize(): void {
         this.particles = [];
         for (let i = 0; i < this.config.numParticles; i++) {
             this.particles.push(this.createParticle());

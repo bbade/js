@@ -1,21 +1,44 @@
 import { RainSystem } from './systems/rain';
 import { FireSystem } from './systems/fire';
-import { Particle, SystemConfig, ParticleSystem } from './interfaces';
+import { SystemConfig, ParticleSystem } from './interfaces';
+import { Particle } from "./Particle";
 import { GenericSystem } from './generic';
 import { RandomSys, Fountain } from './systems/generic-systems';
+import { GravSystem } from './systems/grav';
+import { Vec2 } from './vec2';
 
 
 // --- Configuration ---
-const config = {
+export const Config = {
     particleSize: 2,
     fps: 30,
     
     
 };
 
+export var Mouse: Vec2 | null = null;
+
+
 // --- Setup Canvases ---
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const mainCtx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
+
+// --- Mouse Event Listener ---
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+    Mouse = new Vec2(x, y);
+  } else {
+    Mouse = null;
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  Mouse = null;
+});
 
 // --- Helper Functions ---
 function randomRange(min: number, max: number): number {
@@ -59,7 +82,7 @@ function update(deltaT: number) {
 function renderParticles() {
     mainCtx.clearRect(0, 0, canvas.width, canvas.height);
     if (activeSystem) {
-        activeSystem.particles.forEach(p => drawParticle(mainCtx, p, config.particleSize));
+        activeSystem.particles.forEach(p => drawParticle(mainCtx, p, Config.particleSize));
     }
 }
 
@@ -90,9 +113,11 @@ function startSystem(systemType: string) {
         activeSystem = new GenericSystem(new Fountain(), canvas);
     }else if (systemType === 'random') {
         activeSystem = new GenericSystem(new RandomSys(), canvas);
+    }else if (systemType === 'grav') {
+        activeSystem = new GravSystem(canvas);
     }
     
-    activeSystem.createParticles(); // Initialize
+    activeSystem.initialize(); // Initialize
 
     // Start the animation loop
     requestAnimationFrame(doFrame);

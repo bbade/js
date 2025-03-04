@@ -1,4 +1,6 @@
-import { Particle, SystemConfig, ParticleSystem, Color, Vec2, Rect } from './interfaces';
+import { SystemConfig, ParticleSystem, Color, Rect } from './interfaces';
+import { Particle } from "./Particle";
+import { Vec2 } from "./vec2";
 import { isOutOfBounds, randomPoint, randomRange } from './math';
 
 
@@ -30,7 +32,7 @@ export class GenericSystem implements ParticleSystem {
         this.canvasBoundsPx = new Rect(0, 0, canvas.width, canvas.height);
     }
     
-    createParticles(): void {
+    initialize(): void {
         for (let i = 0; i < this.spec.numParticles; i++) {
             this.particles.push(this.initializeParticle());
         }

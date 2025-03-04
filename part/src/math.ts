@@ -1,4 +1,5 @@
-import { Rect, Vec2 } from "./interfaces";
+import { Rect } from "./interfaces";
+import { Vec2 } from "./vec2";
 
 // Helper function (moved here to keep things self-contained)
 export function randomRange(min: number, max: number): number {
@@ -24,18 +25,6 @@ export function randomRange(min: number, max: number): number {
         particle.y < 0 ||
         particle.y > canvas.height
     );
-  }
-
-  export function sub(v1: Vec2, v2: Vec2): Vec2 {
-    return new Vec2(v1.x - v2.x, v1.y - v2.y);
-  }
-
-  export function scale(v: Vec2, s: number): Vec2 {
-    return new Vec2(v.x * s, v.y * s);
-  }
-
-  export function add(v1: Vec2, v2: Vec2): Vec2 {
-    return new Vec2(v1.x + v2.x, v1.y + v2.y);
   }
 
   export function clamp(n: number, min: number, max: number): number {

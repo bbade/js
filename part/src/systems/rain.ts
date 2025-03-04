@@ -1,6 +1,8 @@
-import { Particle, SystemConfig, ParticleSystem, Color,  } from './interfaces';
-import { randomRange } from './math';
-
+import {  SystemConfig, ParticleSystem, Color,  } from '../interfaces';
+import { Config } from '../main';
+import { randomRange } from '../math';
+import { Particle } from '../Particle';
+import { Vec2 } from '../vec2';
 
 
 
@@ -40,12 +42,12 @@ export class RainSystem implements ParticleSystem{
     return Particle.fromArgs({
       x: randomRange(0, this.canvas.width),
       y: randomRange(0, this.canvas.height),
-      v: {
-        x: 0,
-        y: randomRange(this.config.minSpeed, this.config.maxSpeed)
-      },
+      v: new Vec2(
+         0,
+         randomRange(this.config.minSpeed, this.config.maxSpeed)
+      ),
       color: this.randomPaletteColor(),
-      size: null
+      size: Config.particleSize
     });
   }
 
@@ -64,7 +66,7 @@ export class RainSystem implements ParticleSystem{
         }
     }
 
-  createParticles(): void {
+  initialize(): void {
     this.particles = [];
     for (let i = 0; i < this.config.numParticles; i++) {
       this.particles.push(this.createParticle());

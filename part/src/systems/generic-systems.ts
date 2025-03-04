@@ -1,6 +1,9 @@
 import { GenericSystem, GenericSystemSpec } from "../generic";
-import { Color, Particle, Rect, Vec2 } from "../interfaces";
-import { clamp, sub } from "../math";
+import { Color, Rect } from "../interfaces";
+import { Particle } from "../Particle";
+import { Vec2 } from "../vec2";
+import { clamp } from "../math";
+import { sub } from "../vec2";
 
 export class Fountain implements GenericSystemSpec {
     numParticles: number = 30;

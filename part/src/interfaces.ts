@@ -1,74 +1,4 @@
-// src/interfaces.ts
-export class Particle {
-    x: number;
-    y: number;
-    v: Vec2;
-    size: number | null; // if null, will use system's default
-    color: Color;
-    age: number = 0; // how many frames its lived for
-    ageMs: number= 0; // how many milliseconds its lived for
-
-    get p(): Vec2 {
-        return new Vec2(this.x, this.y);
-    }
-
-    constructor(x: number, y: number, v: Vec2, color: Color, size: number | null = null) {
-        this.x = x;
-        this.y = y;
-        this.v = v;
-        this.color = color;
-        this.size = size;
-
-        this.age = 0;
-        this.ageMs = 0;
-    }
-
-    static fromArgs(args:  {x: number, y: number, v: Vec2, color: Color, size: number | null}) {
-        return new Particle(args.x, args.y, args.v, args.color, args.size);
-    }
-
-    static create() {
-        return new Particle(0, 0, new Vec2(0,0), ,  null, )
-    }
-
-    init(x: number, y: number, v: Vec2, color: Color, size: number | null = null): Particle {
-        this.x = x;
-        this.y = y;
-        this.v = v;
-        this.color = color;
-        this.size = size;
-
-        this.age = 0;
-        this.ageMs = 0;
-
-        return this;
-    }
-
-    incAge(deltaT: number) {
-        this.ageMs += deltaT;
-        this.age+=1; 
-    }
-}
-
-export class Vec2 {
-    x: number;
-    y: number;
-    
-    constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-    }   
-
-    add(other: Vec2) {
-        this.x += other.x;
-        this.y += other.y;
-     }
-
-     scale(s: number) {
-        this.x *= s;
-        this.y *= s;
-     }
-}
+import { Particle } from "./Particle";
 
 export class Rect {
     x: number;
@@ -96,7 +26,9 @@ export class Color {
     r: number;
     g: number;
     b: number;
-    constructor(r: number, g: number, b: number) {
+
+
+    constructor(r: number =0, g: number = 0, b: number =0) {
         this.r = r;
         this.g = g;
         this.b = b;
@@ -126,7 +58,7 @@ export interface SystemConfig {
 export interface ParticleSystem {  //Common interface.
     particles: Particle[]; //All systems have particles
     canvas: HTMLCanvasElement;
-    createParticles(): void;
+    initialize(): void;
     updateParticle(particle: Particle, deltaT:number): void;
     drawOverlay?(context: CanvasRenderingContext2D): void; //optional
 
