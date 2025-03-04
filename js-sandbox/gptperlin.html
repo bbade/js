@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Isometric Island with Elevation</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #333;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #aaa;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+/***************************************
+ *          NAMED CONSTANTS
+ ***************************************/
+
+// Board dimensions
+const BOARD_SIZE = 32;       // 64x64 cells
+const NOISE_SCALE = 50;      // Larger = smoother noise
+const OCTAVES = 4;           // Number of noise octaves
+const PERSISTENCE = 0.5;     // Persistence for layered noise
+const LACUNARITY = 2.0;      // Frequency multiplier for each octave
+
+// Isometric tile sizing
+const TILE_WIDTH = 32;       
+const TILE_HEIGHT = TILE_WIDTH / 2;
+const HALF_TILE_WIDTH = TILE_WIDTH / 2;
+const HALF_TILE_HEIGHT = TILE_HEIGHT / 2;
+
+// Elevation thresholds (for color)
+const WATER_LEVEL = 0.3;
+const SAND_LEVEL = 0.35;
+const GRASS_LEVEL = 0.6;
+const ROCK_LEVEL = 0.8;
+
+// How much to shift tiles up or down based on height
+const ELEVATION_SCALE = 128;
+
+// A vertical offset so the entire map stays on-screen
+// (Since we subtract height from isoY, we might shift everything down)
+const MAP_VERTICAL_OFFSET = 200;
+
+// The final heightmap
+const BOARD = [];
+
+/***************************************
+ *          PERLIN NOISE SETUP
+ ***************************************/
+const PERM_SIZE = 512;
+let p = new Array(PERM_SIZE);
+
+// Original permutation
+let permutation = [
+  151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,
+  140,36,103,30,69,142,8,99,37,240,
+  21,10,23,190, 6,148,247,120,234,75,
+   0,26,197,62,94,252,219,203,117,35,
+  11,32,57,177,33,88,237,149,56,87,
+  174,20,125,136,171,168, 68,175,74,
+  165,71,134,139,48,27,166,77,146,158,
+  231,83,111,229,122,60,211,133,230,220,
+  105,92,41,55,46,245,40,244,102,143,
+  54, 65,25,63,161, 1,216,80,73,209,
+  76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,
+  198,173,186, 3,64,52,217,226,250,
+  124,123, 5,202,38,147,118,126,255,
+  82,85,212,207,206,59,227,47,16,58,
+  17,182,189,28,42,223,183,170,213,
+  119,248,152,  2,44,154,163, 70,221,
+  153,101,155,167, 43,172, 9,129,22,
+  39,253, 19,98,108,110,79,113,224,
+  232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,
+  179,162,241, 81,51,145,235,249,14,
+  239,107, 49,192,214, 31,181,199,106,
+  157,184, 84,204,176,115,121,50,45,
+  127,  4,150,254,138,236,205, 93,222,
+  114, 67,29,24,72,243,141,128,195,
+  78,66,215,61,156,180
+];
+
+// Fill up the p[] array so that it repeats the permutation
+for (let i = 0; i < PERM_SIZE; i++) {
+  p[i] = permutation[i % 256];
+}
+
+function fade(t) {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function lerp(a, b, t) {
+  return a + t * (b - a);
+}
+
+function grad(hash, x, y) {
+  switch(hash & 3) {
+    case 0: return  x + y;
+    case 1: return -x + y;
+    case 2: return  x - y;
+    case 3: return -x - y;
+  }
+  return 0; // never happens
+}
+
+function perlin2D(x, y) {
+  let X = Math.floor(x) & 255;
+  let Y = Math.floor(y) & 255;
+  let xf = x - Math.floor(x);
+  let yf = y - Math.floor(y);
+
+  let topRight    = p[p[X+1] + Y+1];
+  let topLeft     = p[p[X]   + Y+1];
+  let bottomRight = p[p[X+1] + Y];
+  let bottomLeft  = p[p[X]   + Y];
+
+  let u = fade(xf);
+  let v = fade(yf);
+
+  let n0 = grad(p[bottomLeft], xf, yf);
+  let n1 = grad(p[bottomRight], xf - 1, yf);
+  let ix0 = lerp(n0, n1, u);
+
+  let n2 = grad(p[topLeft], xf, yf - 1);
+  let n3 = grad(p[topRight], xf - 1, yf - 1);
+  let ix1 = lerp(n2, n3, u);
+
+  return lerp(ix0, ix1, v);
+}
+
+function octaveNoise2D(x, y, octaves, persistence, lacunarity) {
+  let total = 0;
+  let frequency = 1;
+  let amplitude = 1;
+  let maxValue = 0;
+
+  for (let i = 0; i < octaves; i++) {
+    total += perlin2D(x * frequency, y * frequency) * amplitude;
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
+  }
+  // Scale from [-some..some] to [0..1]
+  return (total / maxValue) * 0.5 + 0.5;
+}
+
+/***************************************
+ *   GENERATE BOARD (HEIGHTMAP) ARRAY
+ ***************************************/
+function generateBoard() {
+  const center = BOARD_SIZE / 2;
+  const radius = BOARD_SIZE / 2;
+
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    BOARD[row] = [];
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      let nx = col / NOISE_SCALE;
+      let ny = row / NOISE_SCALE;
+      let noiseVal = octaveNoise2D(nx, ny, OCTAVES, PERSISTENCE, LACUNARITY);
+
+      let dx = col - center;
+      let dy = row - center;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      let falloff = 1.0 - (dist / radius);
+      if (falloff < 0) falloff = 0;
+
+      let height = noiseVal * falloff;
+      BOARD[row][col] = height;
+    }
+  }
+}
+
+/***************************************
+ *         RENDERING HELPERS
+ ***************************************/
+function getTileColor(height) {
+  if (height < WATER_LEVEL) {
+    return "#0000ff"; // water
+  } else if (height < SAND_LEVEL) {
+    return "#eedc82"; // sand
+  } else if (height < GRASS_LEVEL) {
+    return "#008000"; // grass
+  } else if (height < ROCK_LEVEL) {
+    return "#808080"; // rock
+  } else {
+    return "#ffffff"; // snow
+  }
+}
+
+/***************************************
+ *         DRAW BOARD IN ISOMETRIC
+ ***************************************/
+function drawBoard(ctx) {
+  // The total map size in isometric:
+  const mapWidth = (BOARD_SIZE + BOARD_SIZE) * HALF_TILE_WIDTH;
+  const mapHeight = (BOARD_SIZE + BOARD_SIZE) * HALF_TILE_HEIGHT;
+
+  // We'll shift the origin so that the top of the map is near the top-center
+  // You can adjust these offsets as you like
+  const offsetX = mapWidth / 2;
+  const offsetY = 0;
+
+  // IMPORTANT:
+  // Draw in "layer" order, from 0..(2*BOARD_SIZE - 2).
+  // Each layer is row+col. This ensures correct overlap
+  // (back tiles drawn first, front tiles drawn last).
+  for (let layer = 0; layer < 2 * BOARD_SIZE - 1; layer++) {
+    for (let row = 0; row <= layer; row++) {
+      let col = layer - row;
+      if (row < BOARD_SIZE && col < BOARD_SIZE) {
+        let height = BOARD[row][col];
+        let color = getTileColor(height);
+
+        // Convert (row,col) to isometric coordinates
+        let isoX = (col - row) * HALF_TILE_WIDTH + offsetX;
+        // Subtract some vertical offset based on the tile's height
+        let isoY = (col + row) * HALF_TILE_HEIGHT + offsetY
+                   - (height * ELEVATION_SCALE)
+                   + MAP_VERTICAL_OFFSET;
+
+        // Draw the diamond tile
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(isoX, isoY);
+        ctx.lineTo(isoX + HALF_TILE_WIDTH, isoY + HALF_TILE_HEIGHT);
+        ctx.lineTo(isoX, isoY + TILE_HEIGHT);
+        ctx.lineTo(isoX - HALF_TILE_WIDTH, isoY + HALF_TILE_HEIGHT);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
+/***************************************
+ *         MAIN ENTRY POINT
+ ***************************************/
+window.onload = function() {
+  const mapWidth = (BOARD_SIZE + BOARD_SIZE) * HALF_TILE_WIDTH;
+  const mapHeight = (BOARD_SIZE + BOARD_SIZE) * HALF_TILE_HEIGHT;
+
+  let canvas = document.getElementById("gameCanvas");
+  canvas.width = mapWidth + TILE_WIDTH + 200;   // Some padding
+  canvas.height = mapHeight + TILE_HEIGHT + 300;
+
+  let ctx = canvas.getContext("2d");
+
+  // Generate the board
+  generateBoard();
+
+  // Draw the board in isometric view
+  drawBoard(ctx);
+};
+</script>
+</body>
+</html>

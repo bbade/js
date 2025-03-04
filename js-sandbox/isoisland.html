@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Isometric Island Generator</title>
+<style>
+body {
+  background-color: #112;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+canvas {
+    border: 1px solid black;
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    // Constants
+    const BOARD_SIZE = 64;
+    const TILE_WIDTH = 8;  // Changed to 8
+    const TILE_HEIGHT = 4; // Changed to 4
+    const CANVAS_WIDTH = BOARD_SIZE * TILE_WIDTH * 2;
+    const CANVAS_HEIGHT = (BOARD_SIZE * TILE_HEIGHT * 2) + (BOARD_SIZE * TILE_HEIGHT);
+
+    const WATER_LEVEL = 0.3;
+    const SAND_LEVEL = 0.35;
+    const GRASS_LEVEL = 0.7;
+    const MOUNTAIN_LEVEL = 0.85;
+
+    const WATER_COLOR = "#00008B";
+    const SAND_COLOR = "#C2B280";
+    const GRASS_COLOR = "#228B22";
+    const MOUNTAIN_COLOR = "#808080";
+    const SNOW_COLOR = "#FFFFFF";
+
+    const NOISE_SCALE = 0.05;
+    const NOISE_OCTAVES = 4;
+    const NOISE_PERSISTENCE = 0.5;
+    const NOISE_LACUNARITY = 2.0;
+
+    // --- Perlin Noise Implementation ---
+    function perlinNoise(x, y) {
+        let total = 0;
+        let frequency = 1;
+        let amplitude = 1;
+        let maxAmplitude = 0;
+
+        for (let i = 0; i < NOISE_OCTAVES; i++) {
+            total += interpolatedNoise(x * frequency, y * frequency) * amplitude;
+            maxAmplitude += amplitude;
+            amplitude *= NOISE_PERSISTENCE;
+            frequency *= NOISE_LACUNARITY;
+        }
+
+        return total / maxAmplitude;
+    }
+
+    function smoothNoise(x, y) {
+        let fractX = x - Math.floor(x);
+        let fractY = y - Math.floor(y);
+
+        let x1 = (Math.floor(x) + BOARD_SIZE) % BOARD_SIZE;
+        let y1 = (Math.floor(y) + BOARD_SIZE) % BOARD_SIZE;
+
+        let x2 = (x1 + BOARD_SIZE - 1) % BOARD_SIZE;
+        let y2 = (y1 + BOARD_SIZE - 1) % BOARD_SIZE;
+
+        let value = 0.0;
+        value += fractX * fractY * noise(x1, y1);
+        value += fractX * (1 - fractY) * noise(x1, y2);
+        value += (1 - fractX) * fractY * noise(x2, y1);
+        value += (1 - fractX) * (1 - fractY) * noise(x2, y2);
+
+        return value;
+    }
+
+    function interpolatedNoise(x, y) {
+        const intX = Math.floor(x);
+        const fractX = x - intX;
+        const intY = Math.floor(y);
+        const fractY = y - intY;
+
+        const v1 = smoothNoise(intX, intY);
+        const v2 = smoothNoise(intX + 1, intY);
+        const v3 = smoothNoise(intX, intY + 1);
+        const v4 = smoothNoise(intX + 1, intY + 1);
+
+        const i1 = cosineInterpolate(v1, v2, fractX);
+        const i2 = cosineInterpolate(v3, v4, fractX);
+
+        return cosineInterpolate(i1, i2, fractY);
+    }
+
+    function cosineInterpolate(a, b, x) {
+        const ft = x * Math.PI;
+        const f = (1 - Math.cos(ft)) * 0.5;
+        return a * (1 - f) + b * f;
+    }
+
+    function noise(x, y) {
+      let n = x + y * 57;
+      n = (n << 13) ^ n;
+      return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+    }
+
+    // --- Heightmap Generation ---
+    let board = [];
+    function generateHeightmap() {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+            board[x] = [];
+            for (let y = 0; y < BOARD_SIZE; y++) {
+                let distToCenter = Math.sqrt(Math.pow(x - BOARD_SIZE / 2, 2) + Math.pow(y - BOARD_SIZE / 2, 2));
+                let maxDist = Math.sqrt(Math.pow(BOARD_SIZE / 2, 2) + Math.pow(BOARD_SIZE / 2, 2));
+                let elevation = perlinNoise(x * NOISE_SCALE, y * NOISE_SCALE);
+
+                let islandShape = 1 - Math.pow(distToCenter / maxDist, 2);
+                elevation *= islandShape;
+                elevation = Math.max(0, Math.min(1, elevation));
+
+                board[x][y] = elevation;
+            }
+        }
+    }
+
+    // --- Isometric Tile Drawing ---
+    function drawIsometricTile(ctx, x, y, elevation) {
+        const isoX = (x - y) * TILE_WIDTH;
+        const isoY = (x + y) * TILE_HEIGHT / 2;
+
+        let color;
+        if (elevation <= WATER_LEVEL) {
+            color = WATER_COLOR;
+        } else if (elevation <= SAND_LEVEL) {
+            color = SAND_COLOR;
+        } else if (elevation <= GRASS_LEVEL) {
+            color = GRASS_COLOR;
+        } else if (elevation <= MOUNTAIN_LEVEL) {
+            color = MOUNTAIN_COLOR;
+        } else {
+            color = SNOW_COLOR;
+        }
+
+        const centerX = CANVAS_WIDTH / 2 - TILE_WIDTH / 2;
+        const centerY = (CANVAS_HEIGHT / 2) - (TILE_HEIGHT * BOARD_SIZE / 2);
+
+        ctx.save();
+        ctx.translate(isoX + centerX, isoY + centerY - (elevation * 10));
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(TILE_WIDTH, TILE_HEIGHT / 2);
+        ctx.lineTo(0, TILE_HEIGHT);
+        ctx.lineTo(-TILE_WIDTH, TILE_HEIGHT / 2);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // --- Rendering ---
+    function render() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let y = 0; y < BOARD_SIZE; y++) {
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                drawIsometricTile(ctx, x, y, board[x][y]);
+            }
+        }
+    }
+
+    // --- Main Function ---
+    function main() {
+        generateHeightmap();
+        render();
+    }
+
+    window.onload = main;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Minecraft Texture Generator</title>
+<style>
+body { margin: 0; }
+canvas { display: block; }
+#container { display: flex; }
+#topView, #frontView { margin: 10px; }
+</style>
+</head>
+<body>
+
+<select id="textureType">
+  <option value="grass">Grass</option>
+  <option value="stone">Stone</option>
+  <option value="dirt">Dirt</option>
+  <option value="wood">Wood</option>
+  <option value="sand">Sand</option>
+  <option value="water">Water</option>
+  <option value="lava">Lava</option>
+</select>
+
+<div id="container">
+  <canvas id="topView" width="128" height="128"></canvas>
+  <canvas id="frontView" width="128" height="128"></canvas>
+</div>
+
+<script>
+const TEXTURE_SIZE = 32;
+const DISPLAY_SIZE = 128;
+
+class TexturePair {
+  constructor(top, side) {
+    this.top = top;
+    this.side = side;
+  }
+}
+
+// Helper function for color variation
+function varyColor(baseColor, variation) {
+    const r = Math.max(0, Math.min(255, baseColor[0] + Math.floor(Math.random() * variation * 2) - variation));
+    const g = Math.max(0, Math.min(255, baseColor[1] + Math.floor(Math.random() * variation * 2) - variation));
+    const b = Math.max(0, Math.min(255, baseColor[2] + Math.floor(Math.random() * variation * 2) - variation));
+    return `rgb(${r},${g},${b})`;
+}
+
+function generateGrass() {
+    const top = document.createElement('canvas');
+    top.width = TEXTURE_SIZE;
+    top.height = TEXTURE_SIZE;
+    const topCtx = top.getContext('2d');
+
+    const side = document.createElement('canvas');
+    side.width = TEXTURE_SIZE;
+    side.height = TEXTURE_SIZE;
+    const sideCtx = side.getContext('2d');
+
+    // Grass Top
+    for (let x = 0; x < TEXTURE_SIZE; x += 4) {
+        for (let y = 0; y < TEXTURE_SIZE; y += 4) {
+            topCtx.fillStyle = varyColor([100, 150, 50], 30);
+            topCtx.fillRect(x, y, 4, 4);
+
+            if (Math.random() < 0.3) {
+                topCtx.fillStyle = varyColor([80, 120, 30], 20);
+                topCtx.fillRect(x, y, 2, 2);
+            }
+        }
+    }
+
+    // Dirt Side with Grass Layer
+    for (let x = 0; x < TEXTURE_SIZE; x += 4) {
+        for (let y = 0; y < TEXTURE_SIZE; y += 4) {
+            sideCtx.fillStyle = (y < 4) ? varyColor([100, 150, 50], 30) : varyColor([80, 60, 20], 30);
+            sideCtx.fillRect(x, y, 4, 4);
+        }
+    }
+
+    return new TexturePair(top, side);
+}
+function generateStone() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+
+    // Desaturated base color
+    const baseColor = [118, 118, 118];
+
+    drawNoiseTexture(topCtx, baseColor, 10, 2);
+    drawNoiseTexture(sideCtx, baseColor, 10, 2);
+
+    return new TexturePair(top, side);
+}
+
+function generateDirt() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+
+    const baseColor = [100, 70, 30]; // Brown
+
+    // Reduce variation, limit green, and use 4x4 chunks
+     drawDirtTexture(topCtx, baseColor, 15, 4); // Pass chunk size
+     drawDirtTexture(sideCtx, baseColor, 15, 4);
+
+    return new TexturePair(top, side);
+}
+//draw dirt texture
+function drawDirtTexture(ctx, baseColor, variation, chunkSize) {
+    for (let x = 0; x < TEXTURE_SIZE; x += chunkSize) {
+        for (let y = 0; y < TEXTURE_SIZE; y += chunkSize) {
+            // Limit green component
+            let r = baseColor[0] + Math.floor(Math.random() * variation * 2) - variation;
+            let g = Math.max(0, Math.min(100, baseColor[1] + Math.floor(Math.random() * variation * 2) - variation)); // Limit green to 100
+            let b = baseColor[2] + Math.floor(Math.random() * variation * 2) - variation;
+
+            r = Math.max(0, Math.min(255, r));
+            b = Math.max(0, Math.min(255, b));
+
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(x, y, chunkSize, chunkSize);
+        }
+    }
+}
+function generateWood() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+
+    const baseColor = [180, 150, 80]; // Light Brown
+    const variation = 10;  // Reduced variation to 10 (50% of 20)
+
+    drawNoiseTexture(topCtx, baseColor, variation);
+    drawNoiseTexture(sideCtx, baseColor, variation);
+
+    // Add vertical plank lines to the side view
+    for (let x = 0; x < TEXTURE_SIZE; x += 8) {
+        sideCtx.fillStyle = varyColor([160, 130, 60], variation); // Darker brown, same variation
+        sideCtx.fillRect(x, 0, 2, TEXTURE_SIZE);
+    }
+
+    return new TexturePair(top, side);
+}
+
+function generateSand() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+
+    const baseColor = [230, 210, 150];
+
+    drawNoiseTexture(topCtx, baseColor, 10);
+    drawNoiseTexture(sideCtx, baseColor, 10);
+
+    return new TexturePair(top, side);
+}
+
+// --- New Texture Functions ---
+
+function generateWater() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+
+    const baseColor = [50, 100, 220]; // Blue
+
+    // Add some wavy lines for a more dynamic water effect
+    for (let y = 0; y < TEXTURE_SIZE; y += 4) {
+        topCtx.fillStyle = varyColor(baseColor, 30);
+        topCtx.fillRect(0, y, TEXTURE_SIZE, 2);
+
+        sideCtx.fillStyle = varyColor(baseColor, 30);
+        sideCtx.fillRect(0, y, TEXTURE_SIZE, 2);
+    }
+        drawNoiseTexture(topCtx, baseColor, 20);
+        drawNoiseTexture(sideCtx, baseColor, 20);
+
+    return new TexturePair(top, side);
+}
+
+function generateLava() {
+    const top = createTextureCanvas();
+    const side = createTextureCanvas();
+    const topCtx = top.getContext('2d');
+    const sideCtx = side.getContext('2d');
+    drawLavaTexture(topCtx);
+    drawLavaTexture(sideCtx)
+    return new TexturePair(top, side);
+}
+
+function drawLavaTexture(ctx) {
+        const baseColor = [255, 80, 0]; // Orange-Red
+    // Add some "cracks" of brighter color for lava effect
+    for (let i = 0; i < TEXTURE_SIZE * 2; i++) { // Increased density of lines
+        const x = Math.floor(Math.random() * TEXTURE_SIZE);
+        const y = Math.floor(Math.random() * TEXTURE_SIZE);
+        const len = Math.floor(Math.random() * 8) + 2; // Lines are now longer
+
+        //limit green
+        let r = 255;
+        let g = Math.max(0, Math.min(170, 150 + Math.floor(Math.random() * 40 * 2) - 40)); // limit green
+        let b = 0;
+
+        ctx.fillStyle = `rgb(${r},${g},${b})`; // Brighter orange
+        ctx.fillRect(x, y, len, 1);  // Horizontal lines
+    }
+
+    drawNoiseTexture(ctx, baseColor, 50); //increased variation for lava
+}
+
+// Helper function to create a texture canvas
+function createTextureCanvas() {
+    const canvas = document.createElement('canvas');
+    canvas.width = TEXTURE_SIZE;
+    canvas.height = TEXTURE_SIZE;
+    return canvas;
+}
+
+// Modified drawNoiseTexture to accept chunk size
+function drawNoiseTexture(ctx, baseColor, variation, chunkSize = 1) {
+    for (let x = 0; x < TEXTURE_SIZE; x += chunkSize) {
+        for (let y = 0; y < TEXTURE_SIZE; y += chunkSize) {
+            ctx.fillStyle = varyColor(baseColor, variation);
+            ctx.fillRect(x, y, chunkSize, chunkSize);
+        }
+    }
+}
+
+function drawTexture(ctx, texture) {
+    if (!ctx || !texture) {
+        console.error("Invalid context or texture provided to drawTexture.");
+        return;
+    }
+    ctx.imageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
+    try {
+        ctx.drawImage(texture, 0, 0, TEXTURE_SIZE, TEXTURE_SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+    } catch (error) {
+        console.error("Error drawing texture:", error);
+    }
+}
+
+const topView = document.getElementById('topView');
+const frontView = document.getElementById('frontView');
+
+// Get contexts safely, with checks.
+const topCtx = topView ? topView.getContext('2d') : null;
+const frontCtx = frontView ? frontView.getContext('2d') : null;
+
+if (!topCtx || !frontCtx) {
+    console.error("Could not get 2D context for canvases.");
+}
+
+
+document.getElementById('textureType').addEventListener('change', handleTextureChange);
+
+function handleTextureChange() {
+    const textureType = document.getElementById('textureType').value;
+    let textures;
+
+    switch (textureType) {
+        case 'grass':
+            textures = generateGrass();
+            break;
+        case 'stone':
+            textures = generateStone();
+            break;
+        case 'dirt':
+            textures = generateDirt();
+            break;
+        case 'wood':
+            textures = generateWood();
+            break;
+        case 'sand':
+            textures = generateSand();
+            break;
+        case 'water':
+            textures = generateWater();
+            break;
+        case 'lava':
+            textures = generateLava();
+            break;
+        default:
+            console.error("Unknown texture type:", textureType);
+            return;
+    }
+
+    if (textures) {
+        drawTexture(topCtx, textures.top);
+        drawTexture(frontCtx, textures.side);
+    }
+}
+
+// Initial texture draw
+handleTextureChange();
+</script>
+
+</body>
+</html>

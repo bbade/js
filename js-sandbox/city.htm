@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Procedural City Map</title>
+<style>
+  body { margin: 0; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="512" height="512"></canvas>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const OFFSCREEN_WIDTH = 256;
+  const OFFSCREEN_HEIGHT = 256;
+  const SCALE = 2;
+
+  // Tile Types
+  const TILE_TYPES = {
+    EMPTY: 0,
+    ROAD: 1,
+    LAWN: 2,
+    DIRT: 3,
+    BUILDING: 4,
+    KEY_BUILDING: 5,
+    HILL: 6,
+    WATER: 7,
+  };
+
+  // Colors for each tile type
+    const TILE_COLORS = {
+        [TILE_TYPES.EMPTY]: '#FFFFFF', // White (for empty, will be overwritten)
+        [TILE_TYPES.ROAD]: '#808080',  // Gray
+        [TILE_TYPES.LAWN]: '#00FF00',   // Green
+        [TILE_TYPES.DIRT]: '#A0522D',  // Brown
+        [TILE_TYPES.BUILDING]: '#C0C0C0', // Light Gray
+        [TILE_TYPES.KEY_BUILDING]: '#800080',  // Purple
+        [TILE_TYPES.HILL]: '#A0522D', // Brown (same as dirt)
+        [TILE_TYPES.WATER]: '#0000FF', // Blue
+    };
+
+  // Game board (offscreen)
+  let gameBoard = [];
+  for (let y = 0; y < OFFSCREEN_HEIGHT; y++) {
+    gameBoard[y] = [];
+    for (let x = 0; x < OFFSCREEN_WIDTH; x++) {
+      gameBoard[y][x] = { type: TILE_TYPES.EMPTY };
+    }
+  }
+
+    function drawPixel(x, y, color, scale = SCALE) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x * scale, y * scale, scale, scale);
+    }
+    
+  function drawGameBoard() {
+    for (let y = 0; y < OFFSCREEN_HEIGHT; y++) {
+      for (let x = 0; x < OFFSCREEN_WIDTH; x++) {
+          const tile = gameBoard[y][x];
+          drawPixel(x, y, TILE_COLORS[tile.type], SCALE);
+      }
+    }
+  }
+
+    function setTile(x, y, type) {
+        if (x >= 0 && x < OFFSCREEN_WIDTH && y >= 0 && y < OFFSCREEN_HEIGHT) {
+            gameBoard[y][x] = { type };
+        }
+    }
+
+    // Function to create a blob of tiles
+    function createBlob(startX, startY, type, minSize, maxSize) {
+        let blob = [];
+        let visited = new Set();
+        let stack = [[startX, startY]];
+        let size = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+
+
+        while (stack.length > 0 && blob.length < size) {
+            let [x, y] = stack.pop();
+            let key = `${x},${y}`;
+
+            if (x < 0 || x >= OFFSCREEN_WIDTH || y < 0 || y >= OFFSCREEN_HEIGHT || visited.has(key) ||  gameBoard[y][x].type !== TILE_TYPES.EMPTY) {
+                continue;
+            }
+
+            visited.add(key);
+          
+            if (Math.random() < 0.8) { //80% chance
+                 setTile(x,y, type)
+                blob.push([x, y]);
+
+                // Add neighbors to the stack
+                stack.push([x + 1, y]);
+                stack.push([x - 1, y]);
+                stack.push([x, y + 1]);
+                stack.push([x, y - 1]);
+            }
+        }
+    }
+    
+    function drawRoad(x1, y1, x2, y2, width = 1) {
+       const dx = Math.abs(x2 - x1);
+        const dy = Math.abs(y2 - y1);
+        const sx = (x1 < x2) ? 1 : -1;
+        const sy = (y1 < y2) ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+          
+          if(width == 1){
+               setTile(x1, y1, TILE_TYPES.ROAD)
+          } else {
+              // Wider road
+                for (let i = -Math.floor(width/2); i <= Math.floor(width/2); i++) {
+                    for (let j = -Math.floor(width/2); j <= Math.floor(width/2); j++) {
+                        setTile(x1 + i, y1 + j, TILE_TYPES.ROAD);
+                    }
+                }
+          }
+
+
+            if ((x1 === x2) && (y1 === y2)) break;
+            const e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x1 += sx; }
+            if (e2 < dx) { err += dx; y1 += sy; }
+        }
+    }
+
+    // Function to connect key locations with roads
+    function connectKeyLocations(keyLocations) {
+      for (let i = 0; i < keyLocations.length - 1; i++) {
+          for (let j = i + 1; j < keyLocations.length; j++) {
+              drawRoad(keyLocations[i][0], keyLocations[i][1], keyLocations[j][0], keyLocations[j][1], 2); // Main roads, width 2
+          }
+      }
+    }
+
+    function generateSideStreets(mainRoads){
+
+    }
+
+    // Function to populate areas along roads
+    function populateAlongRoads() {
+      for (let y = 0; y < OFFSCREEN_HEIGHT; y++) {
+            for (let x = 0; x < OFFSCREEN_WIDTH; x++) {
+              if (gameBoard[y][x].type == TILE_TYPES.ROAD){
+                 //try to build on all sides
+                 tryBuild(x+1, y)
+                 tryBuild(x-1, y)
+                 tryBuild(x, y+1)
+                 tryBuild(x, y-1)
+                }
+              }
+           }
+    }
+
+    function tryBuild(x,y){
+        if (x >= 0 && x < OFFSCREEN_WIDTH && y >= 0 && y < OFFSCREEN_HEIGHT && gameBoard[y][x].type === TILE_TYPES.EMPTY){
+           
+          if(Math.random() > 0.3){
+              setTile(x,y,TILE_TYPES.BUILDING)
+          } else {
+              setTile(x,y,TILE_TYPES.LAWN)
+          }
+
+        }
+    }
+
+  function generateCity() {
+    // 1. Place Key Locations
+    let keyLocations = [];
+    for (let i = 0; i < 5; i++) {
+      let x, y;
+      // Ensure key locations aren't too close to the edge or each other
+      do {
+        x = Math.floor(Math.random() * (OFFSCREEN_WIDTH - 20)) + 10;
+        y = Math.floor(Math.random() * (OFFSCREEN_HEIGHT - 20)) + 10;
+      } while (keyLocations.some(([kx, ky]) => Math.abs(kx - x) < 20 && Math.abs(ky - y) < 20));
+
+      keyLocations.push([x, y]);
+      setTile(x, y, TILE_TYPES.KEY_BUILDING);
+    }
+
+    // 2. Place Hills and Water (blobs)
+    for (let i = 0; i < 3; i++) {
+        let x = Math.floor(Math.random() * OFFSCREEN_WIDTH);
+        let y = Math.floor(Math.random() * OFFSCREEN_HEIGHT);
+        createBlob(x, y, TILE_TYPES.HILL, 5, 15);  // Hills
+
+        x = Math.floor(Math.random() * OFFSCREEN_WIDTH);
+        y = Math.floor(Math.random() * OFFSCREEN_HEIGHT);
+        createBlob(x, y, TILE_TYPES.WATER, 8, 20); // Water
+    }
+
+    // Connect Key Locations with Roads
+    connectKeyLocations(keyLocations);
+    populateAlongRoads();
+
+
+    // Draw the game board
+    drawGameBoard();
+  }
+
+  generateCity();
+</script>
+</body>
+</html>

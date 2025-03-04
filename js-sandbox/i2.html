@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Isometric Procedural Terrain with Cubes (Refactored)</title>
+    <style>
+        body {
+            background-color: #223344;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            /* border: 1px solid black; */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Configuration ---
+        const tileWidth = 64;
+        const tileHeight = 32;
+        const mapWidth = 15;
+        const mapHeight = 15;
+        canvas.width = (mapWidth + mapHeight) * tileWidth / 2;
+        canvas.height = (mapHeight + mapWidth) * tileHeight / 2 + tileHeight;
+
+        // --- Noise Function (Simplex Noise - A simple version) ---
+        function simpleNoise(x, y) {
+            let n = (x + y * 57) | 0;
+            n = (n << 13) ^ n;
+            const nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
+            return 1.0 - (nn / 1073741824.0);
+        }
+
+        // --- Perlin Noise Function ---
+        function perlinNoise(x, y, persistence, octaves) {
+            let total = 0;
+            let frequency = 1;
+            let amplitude = 1;
+            let maxValue = 0;
+
+            for (let i = 0; i < octaves; i++) {
+                total += simpleNoise(x * frequency, y * frequency) * amplitude;
+                maxValue += amplitude;
+                amplitude *= persistence;
+                frequency *= 2;
+            }
+
+            return total / maxValue;
+        }
+
+        // --- Generate Map Data (Procedurally) ---
+        const mapData = [];
+        const treeProbability = 0.2;
+        const treePositions = [];
+
+        function generateMap() {
+            for (let row = 0; row < mapHeight; row++) {
+                mapData[row] = [];
+                for (let col = 0; col < mapWidth; col++) {
+                    const noiseValue = perlinNoise(col / mapWidth, row / mapHeight, 0.5, 4);
+                    let tileType;
+
+                    if (noiseValue < -0.2) {
+                        tileType = 0; // Water
+                    } else if (noiseValue < 0.1) {
+                        tileType = 1; // Low Grass
+                    } else if (noiseValue < 0.4) {
+                        tileType = 2; // Medium Grass
+                    } else if (noiseValue < 0.7) {
+                        tileType = 3; //high grass
+                    }
+                    else {
+                        tileType = 4; // Rock
+                    }
+                    mapData[row][col] = { type: tileType, z: noiseValue * tileHeight };
+
+                    if ((tileType === 1 || tileType === 2 || tileType === 3) && Math.random() < treeProbability) {
+                        treePositions.push({ row, col });
+                    }
+                }
+            }
+        }
+
+        // --- Isometric Projection Function ---
+        function isometricToScreen(row, col, z = 0) {
+            const x = (col - row) * tileWidth / 2;
+            const y = (col + row) * tileHeight / 2 - z;
+            return { x, y };
+        }
+
+        // --- Helper function to get neighbor height ---
+        function getNeighborHeight(row, col, direction) {
+            let neighborRow = row;
+            let neighborCol = col;
+
+            switch (direction) {
+                case 'north': neighborRow--; break;
+                case 'south': neighborRow++; break;
+                case 'east': neighborCol++; break;
+                case 'west': neighborCol--; break;
+            }
+
+            if (neighborRow >= 0 && neighborRow < mapHeight &&
+                neighborCol >= 0 && neighborCol < mapWidth) {
+                return mapData[neighborRow][neighborCol].z;
+            } else {
+                return -Infinity; // Treat out-of-bounds as very low
+            }
+        }
+
+      // --- Helper function to darken a color ---
+      function shadeColor(color, percent) {
+        const num = parseInt(color.slice(1), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+      }
+
+        // --- REFACTORED Isometric Tile Drawing Function ---
+      function drawIsometricTile(row, col, color) {
+        const tile = mapData[row][col];
+        const { x, y } = isometricToScreen(row, col, tile.z);
+        const centeredX = x + canvas.width / 2;
+        const centeredY = y + tileHeight / 2;
+        const z = tile.z;
+
+        // Calculate height differences with neighbors
+        const heightDiffs = {
+          north: tile.z - getNeighborHeight(row, col, 'north'),
+          south: tile.z - getNeighborHeight(row, col, 'south'),
+          east:  tile.z - getNeighborHeight(row, col, 'east'),
+          west:  tile.z - getNeighborHeight(row, col, 'west'),
+        };
+
+        const sideColor = shadeColor(color, -20); // Darken the color
+
+        // Draw left side
+        if (heightDiffs.west > 0) {
+          ctx.fillStyle = sideColor;
+          ctx.beginPath();
+          ctx.moveTo(centeredX, centeredY - z);
+          ctx.lineTo(centeredX - tileWidth / 2, centeredY + tileHeight / 2 - z);
+          ctx.lineTo(centeredX - tileWidth / 2, centeredY + tileHeight / 2 - heightDiffs.west);
+          ctx.lineTo(centeredX, centeredY - heightDiffs.west);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Draw right side
+        if (heightDiffs.east > 0) {
+          ctx.fillStyle = sideColor;
+          ctx.beginPath();
+          ctx.moveTo(centeredX, centeredY - z);
+          ctx.lineTo(centeredX + tileWidth / 2, centeredY + tileHeight / 2 - z);
+          ctx.lineTo(centeredX + tileWidth / 2, centeredY + tileHeight / 2 - heightDiffs.east);
+          ctx.lineTo(centeredX, centeredY - heightDiffs.east);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // --- Top face ---
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(centeredX, centeredY - z);
+        ctx.lineTo(centeredX + tileWidth / 2, centeredY + tileHeight / 2 - z);
+        ctx.lineTo(centeredX, centeredY + tileHeight - z);
+        ctx.lineTo(centeredX - tileWidth / 2, centeredY + tileHeight / 2 - z);
+        ctx.closePath();
+        ctx.fill();
+
+        // Return the bounds of the TOP FACE
+        return {
+          topLeft: { x: centeredX - tileWidth / 2, y: centeredY - z },
+          topRight: { x: centeredX + tileWidth / 2, y: centeredY - z },
+          bottomLeft: { x: centeredX - tileWidth / 2, y: centeredY + tileHeight - z },
+          bottomRight: { x: centeredX + tileWidth / 2, y: centeredY + tileHeight/2 -z },
+        };
+      }
+
+
+        // --- Draw Tile Function ---
+      function drawTile(row, col) {
+        const tile = mapData[row][col];
+        let color;
+        switch (tile.type) {
+          case 0: color = '#0066cc'; break;
+          case 1: color = '#66cc66'; break;
+          case 2: color = '#339933'; break;
+          case 3: color = '#006600'; break; //high grass
+          case 4: color = '#999999'; break;
+        }
+        const topFaceBounds = drawIsometricTile(row, col, color); // Draw the tile and get top face
+          //water details:
+          if(tile.type == 0){
+             const { x, y } = isometricToScreen(row, col, tile.z);
+              const centeredX = x + canvas.width/2;
+              const centeredY = y + tileHeight/2;
+            // Simple wave effect
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centeredX - tileWidth / 4, centeredY + tileHeight / 2- tile.z);
+            ctx.lineTo(centeredX + tileWidth / 4, centeredY + tileHeight / 2- tile.z);
+            ctx.stroke();
+          }
+        return topFaceBounds; // Return for potential use (like tree placement)
+      }
+       // --- Draw Tree Function (uses bounds) ---
+        function drawTree(row, col) {
+            const tile = mapData[row][col];
+            const {x,y} = isometricToScreen(row, col, tile.z);
+            // Trunk
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x + canvas.width / 2 - 4, y  - 24 , 8, 24);
+
+            // Leaves
+            ctx.fillStyle = 'rgba(0,128,0,0.8)';
+            ctx.beginPath();
+            ctx.arc(x + canvas.width/2, y - 32, 12, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+         // --- Depth Sorting Function ---
+        function getDrawOrder() {
+            const drawOrder = [];
+            for (let row = 0; row < mapHeight; row++) {
+                for (let col = 0; col < mapWidth; col++) {
+                    drawOrder.push({ type: 'tile', row, col });
+                }
+            }
+            // Add trees to the draw order
+            for (const tree of treePositions) {
+                drawOrder.push({ type: 'tree', row: tree.row, col: tree.col });
+            }
+
+            // Sort by isometric depth (y + x)
+            drawOrder.sort((a, b) => {
+              const aZ = mapData[a.row][a.col].z;
+              const bZ = mapData[b.row][b.col].z;
+              const aY = isometricToScreen(a.row, a.col, aZ).y;
+              const bY = isometricToScreen(b.row, b.col, bZ).y;
+              return aY - bY; // Corrected sorting
+            });
+            return drawOrder;
+        }
+
+        // --- Main Draw Function ---
+        function drawMap() {
+          const drawOrder = getDrawOrder();
+            for (const item of drawOrder) {
+                if (item.type === 'tile') {
+                    drawTile(item.row, item.col);
+                } else if (item.type === 'tree') {
+                    drawTree(item.row, item.col);
+                }
+            }
+        }
+        // --- Game Loop ---
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMap();
+            // requestAnimationFrame(gameLoop); // Uncomment for animation/updates
+        }
+
+        // --- Initialization ---
+        generateMap(); // Generate the map data
+        gameLoop();     // Start the game loop (draws the map)
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brick and Concrete Canvas</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid black;
+            image-rendering: pixelated; /*  Important for crisp pixel art */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas" width="256" height="256"></canvas>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Constants ---
+        const BRICK_WIDTH = 32;  // Changed brick width
+        const BRICK_HEIGHT = 16; // Changed brick height
+        const MORTAR_SIZE = 2;
+        const NUM_DETAILS = 3;
+        const DETAIL_SIZE = 2;
+        const BRICK_COLOR = '#c67854';
+        const MORTAR_COLOR = '#9c9c9c';
+        const HIGHLIGHT_COLOR = '#d88a66';
+        const SHADOW_COLOR = '#a65834';
+        const ROWS_ABOVE_CONCRETE = 3;
+
+        // Concrete Constants
+        const CONCRETE_BASE_COLOR = '#b0b0b0';
+        const CONCRETE_DARK_COLOR = '#999999';
+        const CONCRETE_LIGHT_COLOR = '#c8c8c8';
+        const CONCRETE_DETAIL_SIZE = 2;
+        const CONCRETE_NUM_DETAILS = 500;
+
+        // Fire Hydrant Constants
+        const HYDRANT_COLOR = '#cc0000'; // Red
+        const HYDRANT_WIDTH = 16;
+        const HYDRANT_HEIGHT = 32;
+        const HYDRANT_CAP_COLOR = '#777777'; // Gray
+        const HYDRANT_CAP_HEIGHT = 6;
+
+        // Street Light Constants
+        const LIGHT_POLE_COLOR = '#555555';
+        const LIGHT_COLOR = '#ffffaa'; // Yellowish
+        const LIGHT_POLE_WIDTH = 10;
+        const LIGHT_POLE_HEIGHT = 100;
+        const LIGHT_WIDTH = 20;
+        const LIGHT_HEIGHT = 10;
+
+
+        function drawBrickTile(ctx, x, y, width, height) {
+
+            // --- Mortar ---
+            ctx.fillStyle = MORTAR_COLOR;
+            ctx.fillRect(x, y, width, height);
+
+            // --- Main Brick Body ---
+            ctx.fillStyle = BRICK_COLOR;
+            ctx.fillRect(x + MORTAR_SIZE, y + MORTAR_SIZE, width - 2 * MORTAR_SIZE, height - 2 * MORTAR_SIZE);
+
+            // --- Highlights ---
+            ctx.fillStyle = HIGHLIGHT_COLOR;
+            ctx.fillRect(x + MORTAR_SIZE, y + MORTAR_SIZE, width - 2 * MORTAR_SIZE, MORTAR_SIZE);
+            ctx.fillRect(x + MORTAR_SIZE, y + 2 * MORTAR_SIZE, MORTAR_SIZE, height - 4 * MORTAR_SIZE);
+
+            // --- Shadows ---
+            ctx.fillStyle = SHADOW_COLOR;
+            ctx.fillRect(x + MORTAR_SIZE, y + height - 2 * MORTAR_SIZE, width - 2 * MORTAR_SIZE, MORTAR_SIZE);
+            ctx.fillRect(x + width - 2 * MORTAR_SIZE, y + 2 * MORTAR_SIZE, MORTAR_SIZE, height - 4 * MORTAR_SIZE);
+
+            // --- Details (optional) ---
+            for(let i = 0; i < NUM_DETAILS; i++) {
+                let dx =  Math.floor(Math.random() * (width - 4 * MORTAR_SIZE)) + 2*MORTAR_SIZE;
+                let dy = Math.floor(Math.random() * (height - 4 * MORTAR_SIZE)) + 2*MORTAR_SIZE;
+
+                let detailColor = (Math.random() < 0.5) ? HIGHLIGHT_COLOR : SHADOW_COLOR;
+
+                ctx.fillStyle = detailColor;
+                ctx.fillRect(x + dx, y + dy, DETAIL_SIZE, DETAIL_SIZE);
+            }
+        }
+
+        function drawConcrete(ctx, x, y, width, height) {
+            // Base layer
+            ctx.fillStyle = CONCRETE_BASE_COLOR;
+            ctx.fillRect(x, y, width, height);
+
+            // Add details (speckles, small variations)
+            for (let i = 0; i < CONCRETE_NUM_DETAILS; i++) {
+                const dx = Math.floor(Math.random() * width);
+                const dy = Math.floor(Math.random() * height);
+                const detailColor = Math.random() < 0.5 ? CONCRETE_DARK_COLOR : CONCRETE_LIGHT_COLOR;
+                ctx.fillStyle = detailColor;
+                ctx.fillRect(x + dx, y + dy, CONCRETE_DETAIL_SIZE, CONCRETE_DETAIL_SIZE);
+            }
+        }
+
+
+        function drawTiledBricks(ctx, canvasWidth, canvasHeight) {
+            for (let y = 0; y < canvasHeight; y += BRICK_HEIGHT) {
+                for (let x = -BRICK_WIDTH / 2; x < canvasWidth; x += BRICK_WIDTH) {
+                    let xOffset = (y / BRICK_HEIGHT) % 2 === 0 ? 0 : BRICK_WIDTH / 2;
+                    drawBrickTile(ctx, x + xOffset, y, BRICK_WIDTH, BRICK_HEIGHT);
+                }
+            }
+        }
+
+        function drawFireHydrant(ctx, x, y) {
+            // Main body
+            ctx.fillStyle = HYDRANT_COLOR;
+            ctx.fillRect(x, y, HYDRANT_WIDTH, HYDRANT_HEIGHT);
+
+            // Cap
+            ctx.fillStyle = HYDRANT_CAP_COLOR;
+            ctx.fillRect(x - 2, y - HYDRANT_CAP_HEIGHT, HYDRANT_WIDTH + 4, HYDRANT_CAP_HEIGHT);
+
+            // Details (Optional: Add small bolts/outlets)
+              ctx.fillStyle = '#555555'; // Dark gray for bolts
+              ctx.fillRect(x, y + HYDRANT_HEIGHT /2 , 2, 2); // Bolt
+              ctx.fillRect(x + HYDRANT_WIDTH - 2, y + HYDRANT_HEIGHT /2, 2, 2);
+        }
+        function drawStreetLight(ctx, x, y) {
+           // Pole
+            ctx.fillStyle = LIGHT_POLE_COLOR;
+            ctx.fillRect(x, y - LIGHT_POLE_HEIGHT, LIGHT_POLE_WIDTH, LIGHT_POLE_HEIGHT);
+
+            // Light fixture (a simple rectangle)
+            ctx.fillStyle = LIGHT_COLOR;
+            ctx.fillRect(x - (LIGHT_WIDTH - LIGHT_POLE_WIDTH) / 2, y - LIGHT_POLE_HEIGHT - LIGHT_HEIGHT, LIGHT_WIDTH, LIGHT_HEIGHT);
+
+            // Optional: Add a glow
+            ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';  // Semi-transparent yellowish
+            ctx.fillRect(x - (LIGHT_WIDTH - LIGHT_POLE_WIDTH) / 2 - 4, y - LIGHT_POLE_HEIGHT - LIGHT_HEIGHT -4, LIGHT_WIDTH + 8, LIGHT_HEIGHT+8);
+
+        }
+
+
+       function drawScene(ctx, canvasWidth, canvasHeight){
+           drawTiledBricks(ctx, canvasWidth, canvasHeight);
+
+            // Calculate the concrete start position
+            const concreteStartY = canvasHeight - (ROWS_ABOVE_CONCRETE * BRICK_HEIGHT);
+
+           drawConcrete(ctx, 0, concreteStartY, canvasWidth, canvasHeight - concreteStartY);
+           drawFireHydrant(ctx, 40, concreteStartY - HYDRANT_HEIGHT);
+           drawStreetLight(ctx, canvasWidth - 30, concreteStartY); // Draw near the right edge
+       }
+
+        drawScene(ctx, canvas.width, canvas.height);
+
+    </script>
+</body>
+</html>

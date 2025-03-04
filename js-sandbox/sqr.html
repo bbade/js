@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beep Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0; /* Added a light background */
+        }
+        button, input, select {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px; /* Added rounded corners */
+        }
+        label {
+            margin-right: 5px;
+            font-weight: bold; /* Made labels bolder */
+        }
+        #controls {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          margin-bottom: 10px;
+        }
+        #controls > div {
+            margin-bottom: 5px; /* Space between control groups */
+            display: flex;        /* Make label and input inline */
+            align-items: center; /* Vertically align label and input */
+        }
+        #controls > div > * {  /* Target direct children of control groups */
+          margin-right: 5px;
+        }
+        #controls > div > *:last-child {  /* Remove right margin from last child */
+          margin-right: 0;
+        }
+
+
+    </style>
+</head>
+<body>
+    <h1>Beep Generator</h1>
+
+    <div id="controls">
+      <div>
+          <label for="waveType">Wave Type:</label>
+          <select id="waveType">
+              <option value="sine">Sine</option>
+              <option value="triangle">Triangle</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="square" selected>Square</option>
+          </select>
+      </div>
+      <div>
+          <label for="frequencyInput">Frequency (Hz):</label>
+          <input type="number" id="frequencyInput" value="440" min="20" max="20000">
+      </div>
+      <div>
+          <label for="durationInput">Duration (s):</label>
+          <input type="number" id="durationInput" value="1" min="0.1" max="5" step="0.1">
+      </div>
+      <div>
+          <label for="volumeInput">Volume:</label>
+          <input type="range" id="volumeInput" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <button id="playButton">Play Beep</button>
+
+
+    <script>
+      // Constants for audio processing
+      const DEFAULT_SAMPLE_RATE = 44100;
+      const DEFAULT_FREQUENCY = 440;
+      const DEFAULT_DURATION = 1;
+      const DEFAULT_WAVE_TYPE = 'square';
+      const DEFAULT_VOLUME = 0.5;
+
+      // Waveform generation functions (object for better organization)
+      const waveforms = {
+          sine: (t) => Math.sin(2 * Math.PI * t),
+          triangle: (t) => Math.abs(2 * (t - Math.floor(t + 0.5))) * 2 - 1,
+          sawtooth: (t) => 2 * (t - Math.floor(t)) - 1,
+          square: (t) => Math.sign(Math.sin(2 * Math.PI * t)),
+      };
+
+
+      function synthesizeWave(frequency, duration, sampleRate, waveType) {
+          const numSamples = Math.floor(duration * sampleRate);
+          const audioData = new Float32Array(numSamples);
+
+          // Use the waveform function from the waveforms object
+          const waveFunc = waveforms[waveType] || waveforms[DEFAULT_WAVE_TYPE]; // Fallback to default
+
+          for (let i = 0; i < numSamples; i++) {
+              const time = i / sampleRate;
+              const t = time * frequency;
+              audioData[i] = waveFunc(t);
+          }
+          return audioData;
+      }
+
+
+      function playBeep(frequency, duration, waveType, volume) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate || DEFAULT_SAMPLE_RATE; // Use context's sample rate if available
+
+            const audioData = synthesizeWave(frequency, duration, sampleRate, waveType);
+            const buffer = audioContext.createBuffer(1, audioData.length, sampleRate);
+            buffer.getChannelData(0).set(audioData);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Use setValueAtTime for precise control
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            source.start();
+            source.stop(audioContext.currentTime + duration);
+
+            source.onended = () => {
+                source.disconnect();
+                gainNode.disconnect();
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const playButton = document.getElementById('playButton');
+            const waveTypeSelect = document.getElementById('waveType');
+            const frequencyInput = document.getElementById('frequencyInput');
+            const durationInput = document.getElementById('durationInput');
+            const volumeInput = document.getElementById('volumeInput');
+
+
+            playButton.addEventListener('click', () => {
+                playBeep(
+                    parseFloat(frequencyInput.value),
+                    parseFloat(durationInput.value),
+                    waveTypeSelect.value,
+                    parseFloat(volumeInput.value)
+                );
+            });
+
+            // Initialize UI with default values
+            frequencyInput.value = DEFAULT_FREQUENCY;
+            durationInput.value = DEFAULT_DURATION;
+            waveTypeSelect.value = DEFAULT_WAVE_TYPE;
+            volumeInput.value = DEFAULT_VOLUME;
+
+        });
+    </script>
+</body>
+</html>
