@@ -95,6 +95,8 @@ function startSystem(systemType: string) {
     mainCtx.clearRect(0, 0, canvas.width, canvas.height);
     
     const bounds = normalizedRect(canvas);
+    const maxDim = Math.max(canvas.width, canvas.height);
+    const normSize = Config.particleSize / maxDim; // todo pass this
 
     if (systemType === 'rain') {
         activeSystem = new RainSystem(bounds);
@@ -102,9 +104,9 @@ function startSystem(systemType: string) {
         activeSystem = new FireSystem(bounds);
     } else if (systemType === 'fountain') {
         activeSystem = new GenericSystem(new Fountain(), bounds);
-    }else if (systemType === 'random') {
+    } else if (systemType === 'random') {
         activeSystem = new GenericSystem(new RandomSys(), bounds);
-    }else if (systemType === 'grav') {
+    } else if (systemType === 'grav') {
         activeSystem = new GravSystem(bounds);
     }
     

@@ -81,10 +81,10 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
 
         const m = Mouse;
 
-        if (m) {
-            const pToM: Vec2 = pos.pointAt(m).normalize().scale(spec.mouseAccel * deltaT/1000);
-            particle.v.add(pToM);
-        }
+        // if (m) {
+        //     const pToM: Vec2 = pos.pointAt(m).normalize().scale(spec.mouseAccel * deltaT/1000);
+        //     particle.v.add(pToM);
+        // }
 
         
         particle.p = add(pos, particle.v);
