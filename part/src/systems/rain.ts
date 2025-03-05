@@ -11,8 +11,8 @@ export class RainSystem implements ParticleSystem {
 
     private readonly config = {
         numParticles: 30,
-        minSpeed: 0.4,
-        maxSpeed: 0.8,
+        minSpeed: 1,
+        maxSpeed: 1.7,
     };
 
     constructor(bounds: Rect) {

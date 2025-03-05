@@ -15,7 +15,7 @@ export interface GenericSystemSpec {
     updateParticle(particle: Particle, deltaT: number, bounds: Rect): void;
 }
 
-const speedConstant = 0.13;
+const speedConstant = .5;
 
 export class GenericSystem implements ParticleSystem {
     public particles: Particle[] = [];
@@ -64,7 +64,19 @@ export class GenericSystem implements ParticleSystem {
     }
 
     private startingPoint(): Vec2 {
-        return randomPoint(this.spec.spawnRectNorm, this.bounds.w, this.bounds.h);
+        // return randomPoint(this.spec.spawnRectNorm, this.bounds.w, this.bounds.h);
+        const vpW = this.bounds.w;
+        const vpH = this.bounds.h;
+
+        const minX = this.spec.spawnRectNorm.x * vpW;
+        const maxX = this.spec.spawnRectNorm.x1 * vpW;
+        const minY = this.spec.spawnRectNorm.y * vpH;
+        const maxY = this.spec.spawnRectNorm.y1 * vpH;
+
+        const x = randomRange(minX, maxX);
+        const y = randomRange(minY, maxY);
+
+        return new Vec2(x, y);  
     }
 
     private randomPaletteColor(): Color {
