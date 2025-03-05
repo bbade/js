@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cloud Particle System</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden; /* Prevent scrollbars */
+  background-color: lightblue;
+}
+
+canvas {
+  background-color: lightblue;
+}
+</style>
+</head>
+<body>
+<canvas id="myCanvas" width="500" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
+
+const canvasWidth = canvas.width;
+const canvasHeight = canvas.height;
+
+class Particle {
+  constructor(x, y, size, color, velocityX, velocityY = 0) {
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.color = color;
+    this.velocityX = velocityX;
+    this.velocityY = velocityY;
+  }
+
+  draw() {
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+  }
+
+  update() {
+    this.x += this.velocityX;
+    this.y += this.velocityY;
+
+    // Wrap around horizontally
+    if (this.x + this.size < 0) {
+      this.x = canvasWidth;
+    } else if (this.x > canvasWidth) {
+      this.x = -this.size;
+    }
+      
+      //wrap around vertically
+    if (this.y + this.size < 0) {
+        this.y = canvasHeight;
+    } else if (this.y > canvasHeight) {
+        this.y = -this.size;
+    }
+  }
+}
+
+class Cloud {
+  constructor(x, y, numParticles) {
+    this.particles = [];
+    this.x = x; // Keep track of the cloud's approximate center
+    this.y = y;
+    this.velocityX = (Math.random() - 0.5) * 1; // Cloud's horizontal speed, can be negative.  Range -0.5 to +0.5
+    this.hasRain = Math.random() < 0.2; // 20% chance of rain
+
+    for (let i = 0; i < numParticles; i++) {
+      // Distribute particles around the initial cloud position
+      const offsetX = (Math.random() - 0.5) * 50; // Spread of -25 to +25
+      const offsetY = (Math.random() - 0.5) * 30; // Spread of -15 to +15
+      const particleSize = 2 + Math.random() * 3;  // Size between 2 and 5
+      this.particles.push(new Particle(x + offsetX, y + offsetY, particleSize, 'white', this.velocityX));
+    }
+
+    this.rainParticles = [];
+  }
+  
+    update() {
+        // Update the cloud's particles.
+        for (const particle of this.particles) {
+            particle.update();
+        }
+      //make it rain
+       if (this.hasRain) {
+            this.spawnRain();
+        }
+
+        // Update and draw rain particles.
+        for (let i = this.rainParticles.length - 1; i >= 0; i--) {
+            this.rainParticles[i].update();
+            this.rainParticles[i].draw();
+
+            // Remove rain particles that go off-screen.  Don't wrap.
+            if (this.rainParticles[i].y > canvasHeight) {
+                this.rainParticles.splice(i, 1);
+            }
+        }
+    }
+
+    spawnRain() {
+    // Spawn rain at a rate that looks reasonable
+        if (Math.random() < 0.1) {  // 10% chance per frame to spawn *a* rain particle
+            // Choose a random particle from the cloud to be the rain source
+            const sourceParticle = this.particles[Math.floor(Math.random() * this.particles.length)];
+
+            const rainSize = 2;
+            const rainVelocityY = 2 + Math.random() * 2; // Rain falls down at a speed of 2 to 4.
+            this.rainParticles.push(new Particle(sourceParticle.x, sourceParticle.y, rainSize, 'blue', 0, rainVelocityY));
+        }
+    }
+}
+
+
+let clouds = [];
+
+// Initial cloud creation
+function initializeClouds() {
+    clouds = []; // Clear existing clouds
+    for (let i = 0; i < 5; i++) {
+      const x = Math.random() * canvasWidth;
+      const y = Math.random() * canvasHeight * 0.4; // Clouds mostly in the top 40% of the canvas
+      const numParticles = 20 + Math.random() * 30; // Between 20 and 50 particles per cloud
+      clouds.push(new Cloud(x, y, numParticles));
+    }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+  for (const cloud of clouds) {
+    //update the clouds
+    cloud.update();
+      
+    //draw the clouds
+    for (const particle of cloud.particles) {
+          particle.draw();
+      }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+
+initializeClouds(); // Create initial clouds
+animate(); // Start animation loop
+
+// Add a click handler to reinitialize the clouds
+canvas.addEventListener('click', initializeClouds);
+
+</script>
+</body>
+</html>
