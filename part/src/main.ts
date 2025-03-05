@@ -113,7 +113,7 @@ function startSystem(systemType: string) {
     } else if (systemType === 'random') {
         activeSystem = new GenericSystem(new RandomSys(), bounds);
     } else if (systemType === 'grav') {
-        activeSystem = new GravSystem(bounds);
+        activeSystem = new GravSystem(bounds,screenToNormal );
     }
     
     activeSystem.initialize(); // Initialize
@@ -138,6 +138,23 @@ function computeProjection(canvas: HTMLCanvasElement) {
     );
 }
 
+// --- Mouse Event Listener ---
+canvas.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width * canvas.width * screenToNormal.x;
+    const y = (event.clientY - rect.top) / rect.height * canvas.height * screenToNormal.y;
+
+    if (x >= 0 && x <= bounds.w && y >= 0 && y <= bounds.h) {
+        Mouse = new Vec2(x, y);
+    } else {
+        Mouse = null;
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    Mouse = null;
+});
+
 function init() {
     
     mainCtx.fillStyle = "#000";
@@ -154,6 +171,8 @@ function init() {
     systemSelect.addEventListener('change', () => {
         startSystem(systemSelect.value);
     });
+
+    
 }
 
 init();

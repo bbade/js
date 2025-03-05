@@ -28,7 +28,6 @@ export class Particle {
 
     // todo, need to be able to project particle size into the normalized coordinates 
 
-
     constructor(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize) {
         this.p = new Vec2(x, y);
         this.v = v;
@@ -64,4 +63,14 @@ export class Particle {
         this.ageMs += deltaT;
         this.age += 1;
     }
+
+    normalizedSize(projection: Vec2): number {
+        return this.size * projection.x;
+    }
+
+    static normalizedSize(s: number, projection: Vec2): number {
+        return s * projection.x;
+    }
 }
+
+

@@ -9,7 +9,7 @@ export class FireSystem implements ParticleSystem {
         numParticles: 100,
         minYSpeed: 1.5,
         maxYSpeed: 2.5,
-        spawnXVariance: 0.1,
+        spawnXVariance: 0.15,
         decay: 0.995
     }
 
@@ -52,45 +52,6 @@ export class FireSystem implements ParticleSystem {
     getColor(y: number, old: Color | null): Color {
         // Normalize y position (0 at top, 1 at bottom)
         const normalizedY = y / this.bounds.h;
-
-    //     let r: number, g: number, b: number;
-    //     const min = 0x33;
-    //     const fade = 12;
-
-    //    /* if (normalizedY > 0.8) {
-    //         // whiteish-yellow
-    //         r = 255;
-    //         g = 255;
-    //         b = Math.floor(180 + (1 - normalizedY) * 75 * 5); // Some blue as we go up
-    //     } *//*else if (normalizedY > 0.6) {
-    //         // Yellow to orange
-    //         r = 255;
-    //         g = Math.floor(255 - (0.8 - normalizedY) * 255 * 5);
-    //         b = 0;
-    //     } else  */ if (normalizedY > 0.5) {
-    //         // Orange to red
-    //         r = 255 * normalizedY;
-    //         g = 150 * normalizedY ;
-    //         b = 0;
-           
-    //     } else if (old) {
-    //         // greyish-black
-    //         // if (old.r > 0) r = Math.max(old.r - fade, min); else r = min;
-    //         // if (old.g > 0) g = Math.max(old.g - fade, min); else g = min;
-    //         // if (old.b > 0) b = Math.max(old.b - fade, min); else b = min;
-    //         r = 0x99;
-    //         g = 0x99;
-    //         b = 0x99;
-    //     } else {
-    //         throw new Error("shouldn't get here");
-    //     }
-
-
-        // console.log(`g is ${g}, normalized y is ${normalizedY}`);
-
-        // r = 255;
-        // // g = Math.max(0, 255*normalizedY);
-        // b = 255;
         const { r, g, b} = flameColor(normalizedY);
         return new Color(r, g, b);
     }
@@ -117,7 +78,7 @@ export class FireSystem implements ParticleSystem {
             } else {
                 dir = 1;
             }
-            particle.x += dir * diff * 0.0015 * deltaT;
+            particle.x += dir * diff * 0.002 * deltaT;
         }
 
         const newColor =  this.getColor(particle.y, particle.color); // Update color

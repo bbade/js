@@ -6,9 +6,9 @@ import { clamp } from "../math";
 import { sub } from "../vec2";
 
 export class Fountain implements GenericSystemSpec {
-    numParticles: number = 30;
-    minSpeed: Vec2 = new Vec2(-0.002, -0.003);
-    maxSpeed: Vec2 = new Vec2(0.002, -0.01);
+    numParticles: number = 60;
+    minSpeed: Vec2 = new Vec2(-0.005, -0.01);
+    maxSpeed: Vec2 = new Vec2(0.005, -0.02);
     palette = [
         new Color(157, 209, 255),
         new Color(130, 183, 245),

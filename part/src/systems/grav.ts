@@ -1,5 +1,5 @@
 import { Color, ParticleSystem, Rect } from '../interfaces'
-import { Mouse } from '../main';
+import { Config, Mouse } from '../main';
 import { isOutOfBounds } from '../math';
 import { Particle } from "../Particle";
 import { add, scale, Vec2 } from "../vec2";
@@ -12,10 +12,10 @@ interface ParticleConfigure {  // additional methods that i might move into the 
 }
 
 const spec = {
-   numParticles: 20,
+   numParticles: 9,
     maxAgeMs: 5 * 1000,
-    G : 1,
-    mouseAccel: 2,
+    G : .21,
+    mouseAccel: .4,
 };
 
 export class GravSystem implements ParticleSystem, ParticleConfigure {
@@ -26,10 +26,14 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
 
     readonly gravity: Vec2 = new Vec2(0, spec.G); // 100 px/sec down, with positive being down
 
+    projection: Vec2;
+    psize: number;
 
 
-    constructor(bounds: Rect) {
+    constructor(bounds: Rect, projection: Vec2) {
         this.bounds = bounds;
+        this.projection = projection;
+        this.psize = Particle.normalizedSize(Config.particleSize , projection);
     }
 
 
@@ -67,27 +71,30 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
 
         const pos = particle.p;
 
-        if (pos.y > this.bounds.h - particle.size) {
+        if (pos.y > this.bounds.h - this.psize) {
             // bounce
             particle.v = new Vec2(
                 particle.v.x, 
-                particle.v.y*-.5
+                particle.v.y*-.8
             );
 
         } else { // freefall
             const down = scale(this.gravity, deltaT / 1000);
+            // console.log('Gravity applied:', down);
             particle.v.add(down);
         }
 
         const m = Mouse;
 
-        // if (m) {
-        //     const pToM: Vec2 = pos.pointAt(m).normalize().scale(spec.mouseAccel * deltaT/1000);
-        //     particle.v.add(pToM);
-        // }
+        if (m) {
+            const pToM: Vec2 = pos.pointAt(m).normalize().scale(spec.mouseAccel * deltaT/1000);
+            particle.v.add(pToM);
+        }
 
         
         particle.p = add(pos, particle.v);
+
+        // console.log(`Position: (${particle.p.x}, ${particle.p.y}), Velocity: (${particle.v.x}, ${particle.v.y})`);
     }
 
     setInitialPosition(particle: Particle): void {
