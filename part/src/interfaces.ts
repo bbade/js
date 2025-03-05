@@ -59,7 +59,14 @@ export interface ParticleSystem {  //Common interface.
     particles: Particle[]; //All systems have particles
     bounds: Rect; // normalize bounds
     initialize(): void;
-    updateParticle(particle: Particle, deltaT:number): void;
+    updateParticle_deprecated(particle: Particle, deltaT:number): void;
+    processFrame(deltaT: number): void; // todo, use this to update the system for each frame? 
     drawOverlay?(context: CanvasRenderingContext2D): void; //optional
 
+}
+export interface ParticleConfigure {
+    initializeParticle(recyled: Particle | null): Particle;
+    setInitialPosition(particle: Particle): void;
+    setInitialVelocity(particle: Particle): void;
+    setInitialColor(particle: Particle): void;
 }

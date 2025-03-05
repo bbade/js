@@ -1,15 +1,8 @@
-import { Color, ParticleSystem, Rect } from '../interfaces'
+import { Color, ParticleConfigure, ParticleSystem, Rect } from '../interfaces'
 import { Config, Mouse } from '../main';
 import { isOutOfBounds } from '../math';
 import { Particle } from "../Particle";
 import { add, scale, Vec2 } from "../vec2";
-
-interface ParticleConfigure {  // additional methods that i might move into the particlesystem interface
-    initializeParticle(recyled: Particle | null): Particle;
-    setInitialPosition(particle: Particle): void;
-    setInitialVelocity(particle: Particle): void;
-    setInitialColor(particle: Particle): void;
-}
 
 const spec = {
    numParticles: 9,
@@ -58,7 +51,7 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
         particle.color = new Color(0, 255, 0);
     }
 
-    updateParticle(particle: Particle, deltaT: number): void {
+    updateParticle_deprecated(particle: Particle, deltaT: number): void {
         particle.incAge(deltaT);
 
         const lifeLeft = 1 - particle.ageMs / spec.maxAgeMs;

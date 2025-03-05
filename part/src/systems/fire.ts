@@ -56,7 +56,7 @@ export class FireSystem implements ParticleSystem {
         return new Color(r, g, b);
     }
 
-    updateParticle(particle: Particle, deltaT: number): void {
+    updateParticle_deprecated(particle: Particle, deltaT: number): void {
         if (this.config.decay === undefined || particle.v.y === undefined) return; // Guard
         particle.y += particle.v.y * deltaT / 1000;
         particle.v.y *= this.config.decay; // Apply decay to upward speed

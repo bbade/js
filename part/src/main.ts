@@ -5,6 +5,7 @@ import { Particle } from "./Particle";
 import { GenericSystem } from './generic';
 import { RandomSys, Fountain } from './systems/generic-systems';
 import { GravSystem } from './systems/grav';
+import { CloudSystem } from './systems/cloud';
 import { mult, Vec2 } from './vec2';
 import { normalizedRect } from './math';
 
@@ -71,7 +72,7 @@ let activeSystem: ParticleSystem; // Keep track of the currently active system
 
 function update(deltaT: number) {
     if (activeSystem) {
-        activeSystem.particles.forEach(particle => activeSystem.updateParticle(particle, deltaT));
+        activeSystem.particles.forEach(particle => activeSystem.updateParticle_deprecated(particle, deltaT));
     }
 }
 
@@ -113,7 +114,9 @@ function startSystem(systemType: string) {
     } else if (systemType === 'random') {
         activeSystem = new GenericSystem(new RandomSys(), bounds);
     } else if (systemType === 'grav') {
-        activeSystem = new GravSystem(bounds,screenToNormal );
+        activeSystem = new GravSystem(bounds, screenToNormal);
+    } else if (systemType === 'clouds') {
+        activeSystem = new CloudSystem(bounds);
     }
     
     activeSystem.initialize(); // Initialize
@@ -143,6 +146,7 @@ canvas.addEventListener('mousemove', (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width * canvas.width * screenToNormal.x;
     const y = (event.clientY - rect.top) / rect.height * canvas.height * screenToNormal.y;
+
 
     if (x >= 0 && x <= bounds.w && y >= 0 && y <= bounds.h) {
         Mouse = new Vec2(x, y);

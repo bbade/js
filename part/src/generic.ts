@@ -33,7 +33,7 @@ export class GenericSystem implements ParticleSystem {
         }
     }
 
-    updateParticle(particle: Particle, deltaT: number): void {
+    updateParticle_deprecated(particle: Particle, deltaT: number): void {
         this.spec.updateParticle(particle, deltaT, this.bounds);
 
         particle.incAge(deltaT);

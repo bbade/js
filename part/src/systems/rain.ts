@@ -52,7 +52,7 @@ export class RainSystem implements ParticleSystem {
         return this.palette[Math.floor(Math.random() * this.palette.length)];
     }
 
-    updateParticle(particle: Particle, elapsed: number): void {
+    updateParticle_deprecated(particle: Particle, elapsed: number): void {
         particle.y += particle.v.y * (elapsed / 1000);
 
         if (particle.y > 1) {

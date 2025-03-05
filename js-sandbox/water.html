@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>2D Particle System - Water Simulation</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #fff;
+}
+canvas {
+  display: block;
+  margin: 50px auto;
+  border: 1px solid #444;
+  cursor: pointer;
+  /* Double the size using transform: scale(2) */
+  transform: scale(2);
+  transform-origin: top left; /* Scale from the top-left corner */
+  image-rendering: pixelated; /* For nearest-neighbor scaling (crisp pixels) */
+  /* Fallbacks for older browsers (though most support 'pixelated')*/
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+</style>
+</head>
+<body>
+
+<canvas id="particleCanvas"></canvas>
+
+<script>
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Configuration
+  const canvasWidth = 300;
+  const canvasHeight = 200;
+  const numParticles = 300;
+  const gravity = 0.1;
+  const damping = 0.95;
+  const spawnRadius = 20;
+  const collisionDistance = 2;
+  const clickInfluenceRadius = 50;
+  const clickStrength = 5;
+
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // Particle class
+  class Particle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 2;
+      this.vy = (Math.random() - 0.5) * 2;
+    }
+
+    update() {
+      this.vy += gravity;
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // Boundary collisions
+      if (this.x < 0) {
+        this.x = 0;
+        this.vx *= -damping;
+      } else if (this.x > canvasWidth) {
+        this.x = canvasWidth;
+        this.vx *= -damping;
+      }
+      if (this.y < 0) {
+        this.y = 0;
+        this.vy *= -damping;
+      } else if (this.y > canvasHeight) {
+        this.y = canvasHeight;
+        this.vy *= -damping;
+      }
+
+      // Particle-particle collisions
+      for (const other of particles) {
+        if (other === this) continue;
+
+        const dx = other.x - this.x;
+        const dy = other.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < collisionDistance) {
+          const collisionNormalX = dx / distance;
+          const collisionNormalY = dy / distance;
+          const overlap = collisionDistance - distance;
+
+          this.x -= collisionNormalX * overlap * 0.5;
+          this.y -= collisionNormalY * overlap * 0.5;
+          other.x += collisionNormalX * overlap * 0.5;
+          other.y += collisionNormalY * overlap * 0.5;
+
+          const dotProductThis = this.vx * collisionNormalX + this.vy * collisionNormalY;
+          const dotProductOther = other.vx * collisionNormalX + other.vy * collisionNormalY;
+
+          this.vx -= 2 * dotProductThis * collisionNormalX * damping;
+          this.vy -= 2 * dotProductThis * collisionNormalY * damping;
+          other.vx -= 2 * dotProductOther * collisionNormalX * damping;
+          other.vy -= 2 * dotProductOther * collisionNormalY * damping;
+        }
+      }
+    }
+
+    draw() {
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(this.x, this.y, 1, 1);
+    }
+  }
+
+  // Create particles
+  const particles = [];
+  for (let i = 0; i < numParticles; i++) {
+    const spawnX = canvasWidth / 2 + (Math.random() - 0.5) * spawnRadius;
+    const spawnY = canvasHeight / 2 + (Math.random() - 0.5) * spawnRadius;
+    particles.push(new Particle(spawnX, spawnY));
+  }
+
+
+    // --- Event Handling ---
+    canvas.addEventListener('click', (event) => {
+        // Get mouse coordinates relative to the canvas
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (event.clientX - rect.left) / 2;
+        const mouseY = (event.clientY - rect.top) / 2;
+
+        for (const particle of particles) {
+            const dx = particle.x - mouseX;
+            const dy = particle.y - mouseY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < clickInfluenceRadius) {
+                // Calculate the direction vector (away from the mouse)
+                const directionX = dx / distance;  // Normalized
+                const directionY = dy / distance;
+
+                // Apply velocity change
+                particle.vx += directionX * clickStrength * (1-distance/clickInfluenceRadius); //scale by distance
+                particle.vy += directionY * clickStrength * (1-distance/clickInfluenceRadius);
+            }
+        }
+    });
+
+  // Animation loop
+  function animate() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    for (const particle of particles) {
+      particle.update();
+      particle.draw();
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+</script>
+
+</body>
+</html>
