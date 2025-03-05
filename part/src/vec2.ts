@@ -1,4 +1,3 @@
-
 export class Vec2 {
     x: number;
     y: number;
@@ -32,6 +31,10 @@ export class Vec2 {
         return this;
     }
 
+    mult(other: Vec2): Vec2 {
+        return new Vec2(this.x * other.x, this.y * other.y);
+    }
+
     // copies, does not mutate
     pointAt(other: Vec2): Vec2 {
         return new Vec2(other.x - this.x, other.y - this.y);
@@ -58,3 +61,8 @@ export function scale(v: Vec2, s: number): Vec2 {
 export function add(v1: Vec2, v2: Vec2): Vec2 {
   return new Vec2(v1.x + v2.x, v1.y + v2.y);
 }
+
+export function mult(v1: Vec2, v2: Vec2): Vec2 {
+    return new Vec2(v1.x * v2.x, v1.y * v2.y);
+}
+

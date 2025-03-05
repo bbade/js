@@ -28,7 +28,7 @@ export class Fountain implements GenericSystemSpec {
     updateParticle(particle: Particle, deltaT: number): void {
         particle.y += particle.v.y * deltaT;
         particle.x += particle.v.x * deltaT;
-        particle.v.y += 0.0001 * deltaT; // down is positive
+        particle.v.y += 0.00001 * deltaT; // down is positive
     }
 }
 
