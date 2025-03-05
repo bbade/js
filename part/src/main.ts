@@ -12,7 +12,7 @@ import { normalizedRect } from './math';
 // --- Configuration ---
 export const Config = {
     particleSize: 2,
-    fps: 30,
+    // fps: 60,
     
     
 };
@@ -42,7 +42,7 @@ function inBounds(particle: Particle, canvas: HTMLCanvasElement): boolean {
         particle.y <= canvas.height
     );
 }
-
+ 
 
 
 function drawParticle(ctx: CanvasRenderingContext2D, particle: Particle, particleSize: number): boolean {
@@ -54,6 +54,8 @@ function drawParticle(ctx: CanvasRenderingContext2D, particle: Particle, particl
     }
 
     ctx.fillStyle = particle.color.toHexStr();
+
+    // console.log(`Filling particle at (${x}, ${y}) with color ${particle.color.toHexStr()}`);
     ctx.fillRect(
         Math.floor(x),
         Math.floor(y),

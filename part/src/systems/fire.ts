@@ -6,7 +6,7 @@ import { Vec2 } from '../vec2';
 
 export class FireSystem implements ParticleSystem {
     config = {
-        numParticles: 1,
+        numParticles: 100,
         minYSpeed: 1.5,
         maxYSpeed: 2.5,
         spawnXVariance: 0.1,
@@ -53,42 +53,45 @@ export class FireSystem implements ParticleSystem {
         // Normalize y position (0 at top, 1 at bottom)
         const normalizedY = y / this.bounds.h;
 
-        let r: number, g: number, b: number;
-        const min = 0x33;
-        const fade = 12;
+    //     let r: number, g: number, b: number;
+    //     const min = 0x33;
+    //     const fade = 12;
 
-       /* if (normalizedY > 0.8) {
-            // whiteish-yellow
-            r = 255;
-            g = 255;
-            b = Math.floor(180 + (1 - normalizedY) * 75 * 5); // Some blue as we go up
-        } *//*else if (normalizedY > 0.6) {
-            // Yellow to orange
-            r = 255;
-            g = Math.floor(255 - (0.8 - normalizedY) * 255 * 5);
-            b = 0;
-        } else if (normalizedY > 0.5) {
-            // Orange to red
-            r = 255;
-            g = Math.floor(150 - (0.6 - normalizedY) * 150 * 5); // Reduce green faster
-            b = 0;
-            */
-        // } else if (old) {
-        //     // greyish-black
-        //     // if (old.r > 0) r = Math.max(old.r - fade, min); else r = min;
-        //     // if (old.g > 0) g = Math.max(old.g - fade, min); else g = min;
-        //     // if (old.b > 0) b = Math.max(old.b - fade, min); else b = min;
-        //     r = 255;
-        //     g = 0;
-        //     b = 255;
-        // } else {
-        //     throw new Error("shouldn't get here");
-        // }
+    //    /* if (normalizedY > 0.8) {
+    //         // whiteish-yellow
+    //         r = 255;
+    //         g = 255;
+    //         b = Math.floor(180 + (1 - normalizedY) * 75 * 5); // Some blue as we go up
+    //     } *//*else if (normalizedY > 0.6) {
+    //         // Yellow to orange
+    //         r = 255;
+    //         g = Math.floor(255 - (0.8 - normalizedY) * 255 * 5);
+    //         b = 0;
+    //     } else  */ if (normalizedY > 0.5) {
+    //         // Orange to red
+    //         r = 255 * normalizedY;
+    //         g = 150 * normalizedY ;
+    //         b = 0;
+           
+    //     } else if (old) {
+    //         // greyish-black
+    //         // if (old.r > 0) r = Math.max(old.r - fade, min); else r = min;
+    //         // if (old.g > 0) g = Math.max(old.g - fade, min); else g = min;
+    //         // if (old.b > 0) b = Math.max(old.b - fade, min); else b = min;
+    //         r = 0x99;
+    //         g = 0x99;
+    //         b = 0x99;
+    //     } else {
+    //         throw new Error("shouldn't get here");
+    //     }
 
-        r = 255*normalizedY;
-        g = 255*normalizedY;
-        b = 255;
 
+        // console.log(`g is ${g}, normalized y is ${normalizedY}`);
+
+        // r = 255;
+        // // g = Math.max(0, 255*normalizedY);
+        // b = 255;
+        const { r, g, b} = flameColor(normalizedY);
         return new Color(r, g, b);
     }
 
@@ -117,7 +120,10 @@ export class FireSystem implements ParticleSystem {
             particle.x += dir * diff * 0.0015 * deltaT;
         }
 
-        particle.color = this.getColor(particle.y, particle.color); // Update color
+        const newColor =  this.getColor(particle.y, particle.color); // Update color
+       
+        // console.log(`Particle color updated to: r=${newColor.r}, g=${newColor.g}, b=${newColor.b}`);
+        particle.color = newColor;
     }
 
     initialize(): void {
@@ -126,4 +132,140 @@ export class FireSystem implements ParticleSystem {
             this.particles.push(this.createParticle());
         }
     }
+}
+function flameColor(i: number): Color {
+    if (i > 1 || i < 0) {
+        throw new Error("Input i must be between 0 and 1 inclusive.");
+    }
+
+    let r = 0;
+    let g = 0;
+    let b = 0;
+
+    const smokeY = .4;
+  
+        // Smoother transition from yellow to red.
+
+        // Yellow to Orange (i > ~0.8) - Brighter yellow
+        if (i > 0.8) {
+            r = 255;
+            g = 255; // Keep it bright yellow longer
+            b = 0;
+        } else if (i > 0.5) {
+            // Orange
+            r = 255;
+            g = Math.max(0, 255 * (1 - Math.pow((0.8 - i) * 3.33, 0.7)));  // Smoother, curved transition.
+            b = 0;
+        } else {
+            // Red
+            r = 255;
+            g = Math.max(0, 150 * (0.5 - i) / 0.2);
+            b = 0;
+        }
+
+
+        // Clamp r, g, b to be within the range 0 to 255
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+        const color = new Color(r,g,b);
+
+
+        if (color.r < 0 || color.r > 255 || color.g < 0 || color.g > 255 || color.b < 0 || color.b > 255) {
+            throw new Error(`RGB values must be between 0 and 255 inclusive. ${color.r}, ${color.g},${color.b}, i=${i}`);
+        }
+
+        if (i < smokeY) {
+            const progress = (i / smokeY) ;
+            scaleBrightness(color, progress);
+            setSaturation(color, progress/2);
+                
+         } 
+
+
+
+    return color;
+}
+
+
+function setSaturation(color: Color, value: number): void {
+    if (value < 0 || value > 1) {
+      throw new Error("Value must be between 0 and 1");
+    }
+  
+    // 1. Convert RGB to HSL (Hue, Saturation, Lightness)
+  
+    // Normalize RGB values to be between 0 and 1
+    let r = color.r / 255;
+    let g = color.g / 255;
+    let b = color.b / 255;
+  
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+  
+    let h = 0;
+    let s = 0;
+    let l = (max + min) / 2;
+  
+    if (delta !== 0) {
+      s = l < 0.5 ? delta / (max + min) : delta / (2 - max - min);
+  
+      if (max === r) {
+        h = (g - b) / delta + (g < b ? 6 : 0);
+      } else if (max === g) {
+        h = (b - r) / delta + 2;
+      } else { // max === b
+        h = (r - g) / delta + 4;
+      }
+  
+      h /= 6;
+    }
+  
+    // 2. Set Saturation to the new value
+    s = value;
+  
+  
+    // 3. Convert HSL back to RGB
+    if (s === 0) {
+      // Achromatic (gray) - saturation is 0, so r, g, b are all equal to lightness
+      color.r = Math.round(l * 255);
+      color.g = Math.round(l * 255);
+      color.b = Math.round(l * 255);
+    } else {
+        const hue2rgb = (p: number, q: number, t: number) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+  
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+  
+        color.r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+        color.g = Math.round(hue2rgb(p, q, h) * 255);
+        color.b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+    }
+  
+    // Ensure RGB values are within the 0-255 range (clamping)
+      color.r = Math.max(0, Math.min(255, color.r));
+      color.g = Math.max(0, Math.min(255, color.g));
+      color.b = Math.max(0, Math.min(255, color.b));
+  }
+
+function scaleBrightness(color: Color, value: number): void {
+    if (color.r < 0 || color.r > 255 || color.g < 0 || color.g > 255 || color.b < 0 || color.b > 255) {
+        throw new Error(`RGB values must be between 0 and 255 inclusive. ${color.r}, ${color.g},${color.b}, ${value}`);
+    }
+    if (value < 0 || value > 1) {
+        throw new Error(`Brightness value must be between 0 and 1 inclusive: ${value}`);
+    }
+
+    // Scale each color component by the brightness value.
+    color.r = Math.round(color.r * value);
+    color.g = Math.round(color.g * value);
+    color.b = Math.round(color.b * value);
 }
