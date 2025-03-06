@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Falling Sand Game</title>
+<style>
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f0f0f0;
+}
+
+canvas {
+  border: 1px solid black;
+}
+</style>
+</head>
+<body>
+
+<canvas id="sandCanvas" width="400" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById('sandCanvas');
+const ctx = canvas.getContext('2d');
+const width = canvas.width;
+const height = canvas.height;
+const cellSize = 4; // Size of each particle
+const gridWidth = Math.floor(width / cellSize);
+const gridHeight = Math.floor(height / cellSize);
+
+// Create the grid (0 = empty, 1 = sand, 2 = water)
+let grid = [];
+for (let i = 0; i < gridHeight; i++) {
+  grid[i] = [];
+  for (let j = 0; j < gridWidth; j++) {
+    grid[i][j] = 0;
+  }
+}
+
+// Function to draw the grid
+function drawGrid() {
+  ctx.clearRect(0, 0, width, height);
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
+      if (grid[y][x] === 1) {
+        ctx.fillStyle = 'brown'; // Sand color
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      } else if (grid[y][x] === 2) {
+          ctx.fillStyle = 'blue'; // Water color
+          ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+      }
+    }
+  }
+}
+
+// Function to create the next grid (double buffering)
+function makeGrid() {
+    let nextGrid = [];
+    for (let i = 0; i < gridHeight; i++) {
+        nextGrid[i] = [];
+        for (let j = 0; j < gridWidth; j++) {
+            nextGrid[i][j] = grid[i][j]; // Initialize with current grid
+        }
+    }
+    return nextGrid;
+}
+
+// Function to handle sand movement
+function handleSand(nextGrid, y, x) {
+    if (grid[y + 1][x] === 0 || grid[y+1][x] === 2) { //Sand falls through water
+        nextGrid[y][x] = grid[y+1][x]; //Swap with water if below is water
+        nextGrid[y + 1][x] = 1;
+      } else {
+        // Try to move diagonally down-left
+        let left = x - 1;
+          if(left < 0) left = gridWidth -1;
+        if ((grid[y + 1][left] === 0  || grid[y+1][left] === 2) && (nextGrid[y+1][left] === 0 || nextGrid[y+1][left] === 2)) { //move through water too
+          nextGrid[y][x] = grid[y+1][left];
+          nextGrid[y + 1][left] = 1;
+        } else {
+          // Try to move diagonally down-right
+           let right = x + 1;
+           if(right >= gridWidth) right = 0;
+          if ((grid[y + 1][right] === 0 || grid[y+1][right] === 2) && (nextGrid[y+1][right] === 0 || nextGrid[y+1][right] === 2)) {
+            nextGrid[y][x] = grid[y+1][right];
+            nextGrid[y + 1][right] = 1;
+          }
+        }
+      }
+}
+
+// Function to handle water movement
+function handleWater(nextGrid, y, x) {
+    if (grid[y + 1][x] === 0) { //Check if directly below is empty
+        nextGrid[y][x] = 0;
+        nextGrid[y+1][x] = 2;
+    }
+    else{
+        //try to spread
+        let left = x -1;
+        if(left < 0) left = gridWidth-1;
+        let right = x+1;
+        if(right >= gridWidth) right = 0;
+
+        let moveLeft = grid[y][left] === 0 && nextGrid[y][left] === 0;
+        let moveRight = grid[y][right] === 0 && nextGrid[y][right] === 0;
+
+        if(moveLeft && moveRight){ //both are free
+            if(Math.random() < 0.5){ //randomly choose
+                nextGrid[y][x] = 0;
+                nextGrid[y][left] = 2;
+            }
+            else{
+                nextGrid[y][x] = 0;
+                nextGrid[y][right] = 2;
+            }
+        }
+        else if(moveLeft){ //left is free
+                nextGrid[y][x] = 0;
+                nextGrid[y][left] = 2;
+        }
+        else if(moveRight){
+                nextGrid[y][x] = 0;
+                nextGrid[y][right] = 2;
+        }
+    }
+}
+
+// Function to update the grid (sand and water falling logic)
+function updateGrid() {
+    let nextGrid = makeGrid();
+
+    for (let y = gridHeight - 2; y >= 0; y--) {
+        for (let x = 0; x < gridWidth; x++) {
+            if (grid[y][x] === 1) {
+                handleSand(nextGrid, y, x);
+            } else if (grid[y][x] === 2) {
+                handleWater(nextGrid, y, x);
+            }
+        }
+    }
+    grid = nextGrid;
+}
+
+// Function to spawn particles
+function spawnParticles(x, y, particleType) {
+    for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+            let nx = x + j;
+            let ny = y + i;
+
+            // Wrap x,y coordinates
+            if (nx < 0) nx = gridWidth - 1;
+            if (nx >= gridWidth) nx = 0;
+            if (ny < 0) ny = gridHeight - 1;
+            if (ny >= gridHeight) ny = 0;
+
+            if (grid[ny][nx] === 0 && Math.random() > 0.2) {
+                grid[ny][nx] = particleType;
+            }
+        }
+    }
+}
+
+// Event listener for mouse clicks (add sand or water)
+canvas.addEventListener('mousedown', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / cellSize);
+    const y = Math.floor((event.clientY - rect.top) / cellSize);
+
+    // Determine whether to add sand (1) or water (2)
+    const particleType = event.shiftKey ? 2 : 1;
+
+    spawnParticles(x,y, particleType);
+
+});
+
+// Game loop
+function gameLoop() {
+  updateGrid();
+  drawGrid();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop(); // Start the game loop
+
+</script>
+
+</body>
+</html>
