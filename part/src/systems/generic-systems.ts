@@ -1,15 +1,16 @@
-import { GenericSystem, GenericSystemSpec } from "../generic";
+import { BallsGenericSystem, GenericSystemSpec } from "../generic";
 import { Rect } from "../interfaces";
 import { Color } from "../Color";
 import { Particle } from "../Particle";
 import { Vec2 } from "../vec2";
 import { clamp } from "../math";
 import { sub } from "../vec2";
+import { PointForce } from "../physics";
 
 export class Fountain implements GenericSystemSpec {
-    numParticles: number = 60;
-    minSpeed: Vec2 = new Vec2(-0.005, -0.01);
-    maxSpeed: Vec2 = new Vec2(0.005, -0.02);
+    numParticles: number = 99;
+    minSpeed: Vec2 = new Vec2(-0.5, -1);
+    maxSpeed: Vec2 =  new Vec2(0.5, -2);
     palette = [
         new Color(157, 209, 255),
         new Color(130, 183, 245),
@@ -25,7 +26,7 @@ export class Fountain implements GenericSystemSpec {
     minPSizePx: number = 1;
     maxPSizePx: number = 1;
     spawnRectNorm: Rect = new Rect(0.5, 1, 0, 0.01); // normalized
-    forces: Vec2[] =[new Vec2(0, 0)];
+    forces: Vec2[] =[new Vec2(0, .9)];
     // pointForces: 
 
     updateParticle(particle: Particle, deltaT: number): void {
@@ -40,8 +41,8 @@ export class Fountain implements GenericSystemSpec {
 
 export class RandomSys implements GenericSystemSpec {
     numParticles: number = 90;
-    minSpeed: Vec2 = new Vec2(-0.01, -0.01);
-    maxSpeed: Vec2 = new Vec2(0.01, 0.01);
+    minSpeed: Vec2 = new Vec2(-1.5, -1);
+    maxSpeed: Vec2 = new Vec2(1.5,1);
     palette = [
         new Color(255, 51, 51),
         new Color(51, 255, 51),
@@ -61,22 +62,31 @@ export class RandomSys implements GenericSystemSpec {
     ];
     minPSizePx: number = 1;
     maxPSizePx: number = 1;
-    spawnRectNorm: Rect = new Rect(.3, .3, .4, .4); // normalized
+    spawnRectNorm: Rect = new Rect(0,0,1,1); // normalized
     forces: Vec2[] = [];
+    pointForces: PointForce[] = [
+        {
+            p: new Vec2(.5, .25),
+            magnitude:  .6
+        }
+    ];
 
-    private center = new Vec2(.5, .5);
+    // private center = new Vec2(.5, .5);
 
     updateParticle(particle: Particle, deltaT: number, canvasBounds: Rect): void {
-        particle.x += particle.v.x * deltaT;
-        particle.y += particle.v.y * deltaT;
+        particle.moveAndUpdateAge(deltaT);
 
-        // normalize particle
-        const pxn = clamp(particle.x, 0, canvasBounds.w) / canvasBounds.w;
-        const pyn = clamp(particle.y, 0, canvasBounds.h) / canvasBounds.h;
 
-        const toCenter = sub(this.center, new Vec2(pxn, pyn));
-        toCenter.scale(.001);
-        particle.v.add(toCenter);
+        // particle.x += particle.v.x * deltaT;
+        // particle.y += particle.v.y * deltaT;
+
+        // // normalize particle
+        // const pxn = clamp(particle.x, 0, canvasBounds.w) / canvasBounds.w;
+        // const pyn = clamp(particle.y, 0, canvasBounds.h) / canvasBounds.h;
+
+        // const toCenter = sub(this.center, new Vec2(pxn, pyn));
+        // toCenter.scale(.001);
+        // particle.v.add(toCenter);
     }
 
 }

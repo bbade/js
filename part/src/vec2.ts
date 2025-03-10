@@ -58,6 +58,12 @@ export function scale(v: Vec2, s: number): Vec2 {
   return new Vec2(v.x * s, v.y * s);
 }
 
+export function scaleMs(v: Vec2, deltaMs: number): Vec2 {
+    const t = deltaMs / 1000;
+    return new Vec2(v.x * t, v.y * t);
+  }
+  
+
 export function add(v1: Vec2, v2: Vec2): Vec2 {
   return new Vec2(v1.x + v2.x, v1.y + v2.y);
 }

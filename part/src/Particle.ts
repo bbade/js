@@ -1,6 +1,6 @@
 import { Color } from "./Color";
 import { Config } from "./main";
-import { applyMovement } from "./physics";
+import { applyAccelleration, applyMovement } from "./physics";
 import { Vec2 } from "./vec2";
 
 export class Particle {
@@ -69,6 +69,10 @@ export class Particle {
         applyMovement(this.p, this.v, deltaT);
         this.ageMs += deltaT;
         this.age += 1;
+    }
+
+    applyForce(f: Vec2, deltaMs: number) {
+        applyAccelleration(this.v, f, deltaMs)
     }
 
     normalizedSize(projection: Vec2): number {

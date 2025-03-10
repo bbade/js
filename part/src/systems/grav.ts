@@ -6,10 +6,10 @@ import { Particle } from "../Particle";
 import { add, scale, Vec2 } from "../vec2";
 
 const spec = {
-   numParticles: 9,
-    maxAgeMs: 5 * 1000,
-    G : .21,
-    mouseAccel: .4,
+   numParticles: 19,
+    maxAgeMs: 39 * 1000,
+    G : 1,
+    mouseAccel: 3,
 };
 
 export class GravSystem implements ParticleSystem, ParticleConfigure {
@@ -22,6 +22,8 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
 
     projection: Vec2;
     psize: number;
+
+    mouseForce: Vec2 | null = null;
 
 
     constructor(bounds: Rect, projection: Vec2) {
@@ -59,7 +61,7 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
     }
 
     private updateParticle(particle: Particle, deltaT: number): void {
-        particle.incAge_deprecated(deltaT);
+        particle.applyForce(this.gravity, deltaT);
 
         const lifeLeft = 1 - particle.ageMs / spec.maxAgeMs;
         particle.color.g= Math.max(100, Math.floor(255*lifeLeft));
@@ -71,17 +73,13 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
 
         const pos = particle.p;
 
-        if (pos.y > this.bounds.h - this.psize) {
+        if (pos.y > this.bounds.h - this.psize && particle.v.y > 0) {
             // bounce
             particle.v = new Vec2(
                 particle.v.x, 
                 particle.v.y*-.8
             );
 
-        } else { // freefall
-            const down = scale(this.gravity, deltaT / 1000);
-            // console.log('Gravity applied:', down);
-            particle.v.add(down);
         }
 
         const m = Mouse;
@@ -92,7 +90,7 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
         }
 
         
-        particle.p = add(pos, particle.v);
+        particle.moveAndUpdateAge(deltaT);
 
         // console.log(`Position: (${particle.p.x}, ${particle.p.y}), Velocity: (${particle.v.x}, ${particle.v.y})`);
     }

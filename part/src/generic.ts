@@ -1,8 +1,9 @@
 import { SystemConfig, ParticleSystem, Rect } from './interfaces';
 import { Color } from "./Color";
 import { Particle } from "./Particle";
-import { Vec2 } from "./vec2";
+import { scale, Vec2 } from "./vec2";
 import { isOutOfBounds, randomPoint, randomRange } from './math';
+import { PointForce } from './physics';
 
 export interface GenericSystemSpec {
     readonly numParticles: number;
@@ -13,6 +14,7 @@ export interface GenericSystemSpec {
     readonly minPSizePx: number;
     readonly maxPSizePx: number;
     readonly forces: Vec2[]; // ambient forces that are applied to all particles each frame
+    readonly pointForces?: PointForce[];
     // readonly pointForces: 
     spawnRectNorm: Rect; // every coordinate is 0 to 1, which is scaled against the viewport
     updateParticle(particle: Particle, deltaT: number, bounds: Rect): void;
@@ -20,7 +22,7 @@ export interface GenericSystemSpec {
 
 const speedConstant = .5;
 
-export class GenericSystem implements ParticleSystem {
+export class BallsGenericSystem implements ParticleSystem {
     public particles: Particle[] = [];
     public readonly bounds: Rect;
     private spec: GenericSystemSpec;
@@ -46,7 +48,17 @@ export class GenericSystem implements ParticleSystem {
 
     protected applyGlobalForces(particle: Particle, deltaT: number) {
         for (const force of this.spec.forces) {
-            particle.v.add(force.scale(deltaT / 1000));
+            const f = scale(force, deltaT / 1000);
+            particle.v.add(f);
+        }
+
+        if (this.spec.pointForces) {
+            for (const pforce of this.spec.pointForces) {
+                const vec = particle.p.pointAt(pforce.p);
+                vec.scale(pforce.magnitude);
+                // apply
+                particle.v.add(vec);
+            }
         }
     }
 

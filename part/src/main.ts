@@ -2,7 +2,7 @@ import { RainSystem } from './systems/rain';
 import { FireSystem } from './systems/fire';
 import { SystemConfig, ParticleSystem, Rect } from './interfaces';
 import { Particle } from "./Particle";
-import { GenericSystem } from './generic';
+import { BallsGenericSystem } from './generic';
 import { RandomSys, Fountain } from './systems/generic-systems';
 import { GravSystem } from './systems/grav';
 import { CloudSystem } from './systems/cloud';
@@ -110,9 +110,9 @@ function startSystem(systemType: string) {
     } else if (systemType === 'fire') {
         activeSystem = new FireSystem(bounds);
     } else if (systemType === 'fountain') {
-        activeSystem = new GenericSystem(new Fountain(), bounds);
+        activeSystem = new BallsGenericSystem(new Fountain(), bounds);
     } else if (systemType === 'random') {
-        activeSystem = new GenericSystem(new RandomSys(), bounds);
+        activeSystem = new BallsGenericSystem(new RandomSys(), bounds);
     } else if (systemType === 'grav') {
         activeSystem = new GravSystem(bounds, screenToNormal);
     } else if (systemType === 'clouds') {

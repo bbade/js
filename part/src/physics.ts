@@ -11,3 +11,13 @@ export function applyMovement(point: Vec2, v: Vec2, deltaMs: number) {
     const d = scale(v, deltaMs / 1000);
     point.add(d);
 }
+
+export class PointForce {
+    p: Vec2;
+    magnitude: number
+
+    constructor(p: Vec2, magnitude: number) {
+        this.p = p;
+        this.magnitude = magnitude;
+    }
+}
