@@ -16,6 +16,10 @@ export function randomPoint(
       randomRange(normalizedBounds.y, normalizedBounds.y1) * canvasH
     );
   }
+
+  export function takeRandom<T>(array: T []): T {
+    return array[Math.floor(Math.random() * array.length)];
+  } 
   
   export function normalizedRect(canvas: HTMLCanvasElement): Rect {
     const m = Math.max(canvas.width, canvas.height);

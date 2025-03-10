@@ -3,7 +3,7 @@ import { Rect } from "../math/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from '../Particle';
 import { Vec2 } from '../math/vec2';
-import { lerp, randomRange } from '../math/math';
+import { lerp, randomRange, takeRandom } from '../math/math';
 import { Circle, CircleUnion } from '../math/Circle';
 import { Mouse } from '../main';
 
@@ -17,6 +17,23 @@ const spec = {
     cloudSpawnInterval: 1000,
     g: 1,
     mouseAccel: 1, // silly
+    palette : [
+        new Color(255, 51, 51),
+        new Color(51, 255, 51),
+        new Color(51, 51, 255),
+        new Color(255, 255, 51),
+        new Color(51, 255, 255),
+        new Color(255, 51, 255),
+        new Color(204, 204, 204),
+        new Color(128, 128, 128),
+        new Color(128, 32, 32),
+        new Color(128, 128, 32),
+        new Color(32, 128, 32),
+        new Color(128, 32, 128),
+        new Color(32, 128, 128),
+        new Color(32, 32, 128),
+        new Color(255, 102, 51)
+    ],
 };
 
 export class CloudSystem implements ParticleSystem {
@@ -168,7 +185,7 @@ export class CloudSystem implements ParticleSystem {
         const rainParticle = Particle.create();
         rainParticle.p = new Vec2(cloudParticle.p.x, cloudParticle.p.y);
         rainParticle.v = cloudParticle.v.copy();
-        rainParticle.color = new Color(0, 0, 255);
+        rainParticle.color =  takeRandom(spec.palette);
         rainParticle.size = .5
         this.rainParticles.push(rainParticle);
     }
