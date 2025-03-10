@@ -1,4 +1,5 @@
-import { SystemConfig, ParticleSystem, Color, Rect } from './interfaces';
+import { SystemConfig, ParticleSystem, Rect } from './interfaces';
+import { Color } from "./Color";
 import { Particle } from "./Particle";
 import { Vec2 } from "./vec2";
 import { isOutOfBounds, randomPoint, randomRange } from './math';
@@ -11,6 +12,8 @@ export interface GenericSystemSpec {
     readonly palette: Color[]; // colors will be randomly chosen
     readonly minPSizePx: number;
     readonly maxPSizePx: number;
+    readonly forces: Vec2[]; // ambient forces that are applied to all particles each frame
+    // readonly pointForces: 
     spawnRectNorm: Rect; // every coordinate is 0 to 1, which is scaled against the viewport
     updateParticle(particle: Particle, deltaT: number, bounds: Rect): void;
 }
@@ -33,13 +36,24 @@ export class GenericSystem implements ParticleSystem {
         }
     }
 
-    updateParticle_deprecated(particle: Particle, deltaT: number): void {
+    private updateParticle(particle: Particle, deltaT: number): void {
         this.spec.updateParticle(particle, deltaT, this.bounds);
-
-        particle.incAge(deltaT);
 
         if (isOutOfBounds(particle.p, this.bounds)) {
             this.initializeParticle(particle);
+        }
+    }
+
+    protected applyGlobalForces(particle: Particle, deltaT: number) {
+        for (const force of this.spec.forces) {
+            particle.v.add(force.scale(deltaT / 1000));
+        }
+    }
+
+    processFrame(deltaT: number): void {
+        for (const particle of this.particles) {
+            this.applyGlobalForces(particle, deltaT);
+            this.updateParticle(particle, deltaT);
         }
     }
 

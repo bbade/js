@@ -1,9 +1,8 @@
-
-import { ParticleSystem, ParticleConfigure, Color, Rect } from '../interfaces';
+import { ParticleSystem, ParticleConfigure, Rect } from '../interfaces';
+import { Color } from "../Color";
 import { Particle } from '../Particle';
 import { Vec2 } from '../vec2';
-import { randomRange } from '../math';
-
+import { lerp, randomRange } from '../math';
 
 const spec = {
     numParticles: 200,
@@ -49,10 +48,20 @@ export class CloudSystem implements ParticleSystem, ParticleConfigure {
     }
 
     setInitialColor(particle: Particle): void {
-        particle.color = new Color(255, 255, 255);
+        const normalizedY = particle.p.y / this.bounds.h;
+        const min = .5; // we'll never get this low
+        const max = 1;
+
+        const v = lerp(min, max, normalizedY);
     }
 
-    updateParticle_deprecated(particle: Particle, deltaT: number): void {
+    processFrame(deltaT: number): void {
+        for (const particle of this.particles) {
+            this.updateParticle(particle, deltaT);
+        }
+    }
+
+    private updateParticle(particle: Particle, deltaT: number): void {
         particle.p.x += particle.v.x * deltaT / 1000;
         if (particle.p.x > this.bounds.w) {
             particle.p.x = 0;

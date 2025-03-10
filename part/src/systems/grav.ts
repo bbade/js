@@ -1,4 +1,5 @@
-import { Color, ParticleConfigure, ParticleSystem, Rect } from '../interfaces'
+import { ParticleConfigure, ParticleSystem, Rect } from '../interfaces'
+import { Color } from "../Color";
 import { Config, Mouse } from '../main';
 import { isOutOfBounds } from '../math';
 import { Particle } from "../Particle";
@@ -51,8 +52,14 @@ export class GravSystem implements ParticleSystem, ParticleConfigure {
         particle.color = new Color(0, 255, 0);
     }
 
-    updateParticle_deprecated(particle: Particle, deltaT: number): void {
-        particle.incAge(deltaT);
+    processFrame(deltaT: number): void {
+        for (const particle of this.particles) {
+            this.updateParticle(particle, deltaT);
+        }
+    }
+
+    private updateParticle(particle: Particle, deltaT: number): void {
+        particle.incAge_deprecated(deltaT);
 
         const lifeLeft = 1 - particle.ageMs / spec.maxAgeMs;
         particle.color.g= Math.max(100, Math.floor(255*lifeLeft));

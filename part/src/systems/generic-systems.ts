@@ -1,5 +1,6 @@
 import { GenericSystem, GenericSystemSpec } from "../generic";
-import { Color, Rect } from "../interfaces";
+import { Rect } from "../interfaces";
+import { Color } from "../Color";
 import { Particle } from "../Particle";
 import { Vec2 } from "../vec2";
 import { clamp } from "../math";
@@ -24,11 +25,16 @@ export class Fountain implements GenericSystemSpec {
     minPSizePx: number = 1;
     maxPSizePx: number = 1;
     spawnRectNorm: Rect = new Rect(0.5, 1, 0, 0.01); // normalized
+    forces: Vec2[] =[new Vec2(0, 0)];
+    // pointForces: 
 
     updateParticle(particle: Particle, deltaT: number): void {
-        particle.y += particle.v.y * deltaT;
-        particle.x += particle.v.x * deltaT;
-        particle.v.y += 0.00001 * deltaT; // down is positive
+        particle.moveAndUpdateAge(deltaT);
+        // particle.y += particle.v.y * deltaT;
+        // particle.x += particle.v.x * deltaT;
+        // particle.v.y += 0.00001 * deltaT; // down is positive
+
+        // don't do anything, allow physics to do its thing. 
     }
 }
 
@@ -56,6 +62,7 @@ export class RandomSys implements GenericSystemSpec {
     minPSizePx: number = 1;
     maxPSizePx: number = 1;
     spawnRectNorm: Rect = new Rect(.3, .3, .4, .4); // normalized
+    forces: Vec2[] = [];
 
     private center = new Vec2(.5, .5);
 

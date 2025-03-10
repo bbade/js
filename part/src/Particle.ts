@@ -1,5 +1,6 @@
-import { Color } from "./interfaces";
+import { Color } from "./Color";
 import { Config } from "./main";
+import { applyMovement } from "./physics";
 import { Vec2 } from "./vec2";
 
 export class Particle {
@@ -59,7 +60,13 @@ export class Particle {
         return this;
     }
 
-    incAge(deltaT: number) {
+    incAge_deprecated(deltaT: number) {
+        this.ageMs += deltaT;
+        this.age += 1;
+    }
+
+    moveAndUpdateAge(deltaT: number) {
+        applyMovement(this.p, this.v, deltaT);
         this.ageMs += deltaT;
         this.age += 1;
     }

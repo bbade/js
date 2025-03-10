@@ -1,4 +1,5 @@
-import { SystemConfig, ParticleSystem, Color, Rect } from '../interfaces';
+import { SystemConfig, ParticleSystem, Rect } from '../interfaces';
+import { Color, scaleBrightness } from "../Color";
 import { Particle } from "../Particle";
 import { randomRange } from '../math';
 import { Config } from '../main';
@@ -56,7 +57,13 @@ export class FireSystem implements ParticleSystem {
         return new Color(r, g, b);
     }
 
-    updateParticle_deprecated(particle: Particle, deltaT: number): void {
+    processFrame(deltaT: number): void {
+        for (const particle of this.particles) {
+            this.updateParticle(particle, deltaT);
+        }
+    }
+
+    private updateParticle(particle: Particle, deltaT: number): void {
         if (this.config.decay === undefined || particle.v.y === undefined) return; // Guard
         particle.y += particle.v.y * deltaT / 1000;
         particle.v.y *= this.config.decay; // Apply decay to upward speed
@@ -217,16 +224,3 @@ function setSaturation(color: Color, value: number): void {
       color.b = Math.max(0, Math.min(255, color.b));
   }
 
-function scaleBrightness(color: Color, value: number): void {
-    if (color.r < 0 || color.r > 255 || color.g < 0 || color.g > 255 || color.b < 0 || color.b > 255) {
-        throw new Error(`RGB values must be between 0 and 255 inclusive. ${color.r}, ${color.g},${color.b}, ${value}`);
-    }
-    if (value < 0 || value > 1) {
-        throw new Error(`Brightness value must be between 0 and 1 inclusive: ${value}`);
-    }
-
-    // Scale each color component by the brightness value.
-    color.r = Math.round(color.r * value);
-    color.g = Math.round(color.g * value);
-    color.b = Math.round(color.b * value);
-}

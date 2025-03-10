@@ -1,4 +1,5 @@
-import { SystemConfig, ParticleSystem, Color, Rect } from '../interfaces';
+import { SystemConfig, ParticleSystem, Rect } from '../interfaces';
+import { Color } from "../Color";
 import { Config } from '../main';
 import { randomRange } from '../math';
 import { Particle } from '../Particle';
@@ -52,7 +53,7 @@ export class RainSystem implements ParticleSystem {
         return this.palette[Math.floor(Math.random() * this.palette.length)];
     }
 
-    updateParticle_deprecated(particle: Particle, elapsed: number): void {
+    updateParticle(particle: Particle, elapsed: number): void {
         particle.y += particle.v.y * (elapsed / 1000);
 
         if (particle.y > 1) {
@@ -60,6 +61,12 @@ export class RainSystem implements ParticleSystem {
             particle.y = 0 - 0.002; // Assuming particleSize is 0.002, from main config
             particle.v.y = randomRange(this.config.minSpeed, this.config.maxSpeed);
             particle.color = this.randomPaletteColor();
+        }
+    }
+
+    processFrame(deltaT: number): void {
+        for (const p of this.particles) {
+            this.updateParticle(p, deltaT);
         }
     }
 

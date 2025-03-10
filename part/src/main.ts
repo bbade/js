@@ -72,7 +72,7 @@ let activeSystem: ParticleSystem; // Keep track of the currently active system
 
 function update(deltaT: number) {
     if (activeSystem) {
-        activeSystem.particles.forEach(particle => activeSystem.updateParticle_deprecated(particle, deltaT));
+        activeSystem.processFrame(deltaT);
     }
 }
 
