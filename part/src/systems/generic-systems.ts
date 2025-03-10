@@ -1,11 +1,11 @@
 import { BallsGenericSystem, GenericSystemSpec } from "../generic";
-import { Rect } from "../interfaces";
+import { Rect } from "../math/Rect";
 import { Color } from "../Color";
 import { Particle } from "../Particle";
-import { Vec2 } from "../vec2";
-import { clamp } from "../math";
-import { sub } from "../vec2";
-import { PointForce } from "../physics";
+import { Vec2 } from "../math/vec2";
+import { clamp } from "../math/math";
+import { sub } from "../math/vec2";
+import { PointForce } from "../math/physics";
 
 export class Fountain implements GenericSystemSpec {
     numParticles: number = 99;

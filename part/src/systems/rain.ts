@@ -1,9 +1,10 @@
-import { SystemConfig, ParticleSystem, Rect } from '../interfaces';
+import { SystemConfig, ParticleSystem } from '../interfaces';
+import { Rect } from "../math/Rect";
 import { Color } from "../Color";
 import { Config } from '../main';
-import { randomRange } from '../math';
+import { randomRange } from '../math/math';
 import { Particle } from '../Particle';
-import { Vec2 } from '../vec2';
+import { Vec2 } from '../math/vec2';
 
 export class RainSystem implements ParticleSystem {
     public particles: Particle[] = []; // Public, as it's accessed in main.ts

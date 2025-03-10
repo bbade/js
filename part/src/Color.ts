@@ -25,6 +25,12 @@ export class Color {
         return `#${r}${g}${b}`;
     }
 }
+
+/**
+ * 
+ * @param color 
+ * @param value  0-1
+ */
 export function scaleBrightness(color: Color, value: number): void {
     if (color.r < 0 || color.r > 255 || color.g < 0 || color.g > 255 || color.b < 0 || color.b > 255) {
         throw new Error(`RGB values must be between 0 and 255 inclusive. ${color.r}, ${color.g},${color.b}, ${value}`);

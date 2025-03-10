@@ -1,9 +1,10 @@
-import { SystemConfig, ParticleSystem, Rect } from '../interfaces';
+import { SystemConfig, ParticleSystem } from '../interfaces';
+import { Rect } from "../math/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from "../Particle";
-import { randomRange } from '../math';
+import { randomRange } from '../math/math';
 import { Config } from '../main';
-import { Vec2 } from '../vec2';
+import { Vec2 } from '../math/vec2';
 
 export class FireSystem implements ParticleSystem {
     config = {

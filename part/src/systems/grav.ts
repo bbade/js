@@ -1,9 +1,10 @@
-import { ParticleConfigure, ParticleSystem, Rect } from '../interfaces'
+import { ParticleConfigure, ParticleSystem } from '../interfaces'
+import { Rect } from "../math/Rect";
 import { Color } from "../Color";
 import { Config, Mouse } from '../main';
-import { isOutOfBounds } from '../math';
+import { isOutOfBounds } from '../math/math';
 import { Particle } from "../Particle";
-import { add, scale, Vec2 } from "../vec2";
+import { add, scale, Vec2 } from "../math/vec2";
 
 const spec = {
    numParticles: 19,

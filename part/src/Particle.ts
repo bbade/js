@@ -1,7 +1,7 @@
 import { Color } from "./Color";
 import { Config } from "./main";
-import { applyAccelleration, applyMovement } from "./physics";
-import { Vec2 } from "./vec2";
+import { applyAccelleration, applyMovement } from "./math/physics";
+import { Vec2 } from "./math/vec2";
 
 export class Particle {
     p: Vec2;
@@ -43,8 +43,8 @@ export class Particle {
         return new Particle(args.x, args.y, args.v, args.color, args.size);
     }
 
-    static create() {
-        return new Particle(0, 0, new Vec2(0, 0), new Color());
+    static create(p: Vec2 = new Vec2(), v: Vec2 = new Vec2(), color: Color = new Color()) {
+        return new Particle(p.x, p.y, v, color);
     }
 
     init(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize): Particle {

@@ -19,6 +19,10 @@ export class Vec2 {
         return `x=${this.x},y=${this.y}`;
     }
 
+    copy(): Vec2 {
+        return new Vec2(this.x, this.y);
+    }
+
     add(other: Vec2): Vec2 {
         this.x += other.x;
         this.y += other.y;

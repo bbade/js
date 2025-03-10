@@ -1,13 +1,14 @@
 import { RainSystem } from './systems/rain';
 import { FireSystem } from './systems/fire';
-import { SystemConfig, ParticleSystem, Rect } from './interfaces';
+import { SystemConfig, ParticleSystem } from './interfaces';
+import { Rect } from "./math/Rect";
 import { Particle } from "./Particle";
 import { BallsGenericSystem } from './generic';
 import { RandomSys, Fountain } from './systems/generic-systems';
 import { GravSystem } from './systems/grav';
 import { CloudSystem } from './systems/cloud';
-import { mult, Vec2 } from './vec2';
-import { normalizedRect } from './math';
+import { mult, Vec2 } from './math/vec2';
+import { normalizedRect } from './math/math';
 
 
 // --- Configuration ---
