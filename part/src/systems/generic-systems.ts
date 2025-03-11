@@ -40,9 +40,12 @@ export class Fountain implements GenericSystemSpec {
 }
 
 export class RandomSys implements GenericSystemSpec {
+    private readonly v = .1;
+    private readonly g = .05;
+
     numParticles: number = 90;
-    minSpeed: Vec2 = new Vec2(-1.5, -1);
-    maxSpeed: Vec2 = new Vec2(1.5,1);
+    minSpeed: Vec2 = new Vec2(-this.v, -this.v);
+    maxSpeed: Vec2 = new Vec2(this.v, this.v);
     palette = [
         new Color(255, 51, 51),
         new Color(51, 255, 51),
@@ -67,7 +70,7 @@ export class RandomSys implements GenericSystemSpec {
     pointForces: PointForce[] = [
         {
             p: new Vec2(.5, .25),
-            magnitude:  .6
+            magnitude:  this.g
         }
     ];
 
