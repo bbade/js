@@ -95,11 +95,7 @@ export class CloudSystem implements ParticleSystem {
             this.cloudSpawnTimer = spec.cloudSpawnInterval;
         }
 
-
-
         for (const c of this.cloudParticles) {
-
-
             if (m) { /// silly
                 const mouseVec: Vec2 = c.p.pointAt(m).normalize().scale(spec.mouseAccel);
                 c.applyForce(mouseVec, deltaT);
@@ -127,7 +123,7 @@ export class CloudSystem implements ParticleSystem {
             if (m) {
                 const mouseVec: Vec2 = r.p.pointAt(m).normalize().scale(spec.mouseAccel);
                 r.applyForce(mouseVec, deltaT);
-            }            /// end silly
+            }/// end silly
 
             r.moveAndUpdateAge(deltaT);
 
@@ -136,9 +132,6 @@ export class CloudSystem implements ParticleSystem {
         this.rainParticles = this.rainParticles.filter((r) => {
             return r.p.y <= this.bounds.y1 + r.size;
         });
-
-
-
 
         /// output //
         this.particles = this.rainParticles.concat(this.cloudParticles);
