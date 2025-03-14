@@ -1,0 +1,28 @@
+{
+  "name": "ascii-map-editor",
+  "version": "1.0.0",
+  "description": "A simple ASCII map editor built with TypeScript and HTML Canvas",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "http-server"
+  },
+  "keywords": [
+    "ascii",
+    "map",
+    "editor",
+    "typescript",
+    "canvas",
+    "roguelike"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "eslint": "^8.50.0",
+    "http-server": "^14.1.1",
+    "typescript": "^5.2.2"
+  }
+}

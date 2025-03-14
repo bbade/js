@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES6",        // Compile to a version of JavaScript compatible with most modern browsers
+    "module": "ESNext",      // Use ES modules (import/export) - required for `type="module"` in HTML
+    "moduleResolution": "node", // Use Node.js-style module resolution
+    "strict": true,           // Enable strict type checking (HIGHLY recommended)
+    "esModuleInterop": true,  // Allows importing CommonJS modules (like some libraries) more easily
+    "skipLibCheck": true,    // Skip type checking of declaration files (speeds up compilation)
+    "forceConsistentCasingInFileNames": true,  // Enforces consistent file casing
+    "sourceMap": true,      // Generate source maps (for debugging)
+    "outDir": "./dist",    // Output compiled JavaScript to a 'dist' directory (optional, but good practice)
+    "rootDir": "./",       // Specify the root directory of your source files
+    "noEmitOnError": true,  // Prevent output if there are compilation errors
+    "removeComments": true,  //Remove comments
+  },
+  "include": [
+    "*.ts"  // Include all .ts files in the project root
+, "src/drawing-state.ts"  ]
+ ,
+  "exclude": [
+    "node_modules" // Exclude node_modules
+  ]
+
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Map Editor</title>
+    <link rel="stylesheet" href="style.css"> </link>
+</head>
+<body>
+<div id="container">
+    <div id="font-controls">
+        <input type="number" id="font-size-input" value="16" min="1">
+        <button id="set-font-size-button">Set</button>
+    </div>
+    <button id="random-button">Random</button>
+    <div id = "canvas-toolbar-wrapper">
+        <div id="canvas-container">
+          <canvas id="drawingCanvas"></canvas>
+        </div>
+        <div id="color-picker">  <div id = "foreground-color">
+                <label for="fg-color">Foreground:</label>
+                <input type="color" id="fg-color" value="#000000">
+            </div>
+            <div id = "background-color">
+                <label for="bg-color">Background:</label>
+                <input type="color" id="bg-color" value="#ffffff">
+            </div>
+
+            <div id="color-preview"></div>
+        </div>
+          <div id="tile-picker">
+          </div>
+    </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

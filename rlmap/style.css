@@ -1,0 +1,97 @@
+body {
+    font-family: monospace;
+    display: flex;
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+#canvas-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+
+#drawingCanvas {
+    image-rendering: pixelated;
+    border: 1px solid black;
+    background-color: white;
+}
+
+
+#random-button {
+    margin-bottom: 10px;
+    align-self: center;
+}
+
+#font-controls {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+#font-size-input {
+  width: 4em;
+}
+
+#canvas-toolbar-wrapper{
+    display: flex;
+}
+
+#color-picker {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-left: 1px solid black;
+}
+#color-picker > div{
+    margin-bottom: 10px;
+}
+
+#color-preview {
+    width: 40px;
+    height: 40px;
+    border: 1px solid black;
+    margin-top: 10px;
+}
+#foreground-color,
+#background-color{
+  display: flex;
+  flex-direction: column;
+}
+
+#tile-picker {
+    width: 25%; /* 1/4 of the screen width */
+    height: 100%; /* Full height */
+    overflow-y: auto; /* Vertical scrollbar if needed */
+    border-left: 1px solid black; /* Separator */
+    display: flex;
+    flex-wrap: wrap; /* Allow buttons to wrap */
+    align-content: flex-start;
+
+}
+#tile-picker button {
+    font-size: 16px;
+    font-family: monospace;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 5px;
+    line-height: 1;
+   box-sizing: border-box;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
