@@ -1,4 +1,4 @@
-import { BallsGenericSystem, GenericSystemSpec } from "../generic";
+import { BallsGenericSystem, GenericSystemSpec } from "./generic";
 import { Rect } from "../math/Rect";
 import { Color } from "../Color";
 import { Particle } from "../Particle";

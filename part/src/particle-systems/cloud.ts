@@ -1,4 +1,4 @@
-import { ParticleSystem, ParticleConfigure } from '../interfaces';
+import { ParticleSystem, ParticleConfigure } from './interfaces';
 import { Rect } from "../math/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from '../Particle';

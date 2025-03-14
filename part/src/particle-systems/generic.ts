@@ -1,10 +1,10 @@
 import { SystemConfig, ParticleSystem } from './interfaces';
-import { Rect } from "./math/Rect";
-import { Color } from "./Color";
-import { Particle } from "./Particle";
-import { scale, Vec2 } from "./math/vec2";
-import { isOutOfBounds, randomPoint, randomRange } from './math/math';
-import { PointForce } from './math/physics';
+import { Rect } from "../math/Rect";
+import { Color } from "../Color";
+import { Particle } from "../Particle";
+import { scale, Vec2 } from "../math/vec2";
+import { isOutOfBounds, randomPoint, randomRange } from '../math/math';
+import { PointForce } from '../math/physics';
 
 export interface GenericSystemSpec {
     readonly numParticles: number;
