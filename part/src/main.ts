@@ -61,8 +61,8 @@ function drawParticle(ctx: CanvasRenderingContext2D, particle: Particle, particl
     ctx.fillRect(
         Math.floor(x),
         Math.floor(y),
-        particleSize,
-        particleSize
+        particle.size,
+        particle.size
     );
     return true;
 }

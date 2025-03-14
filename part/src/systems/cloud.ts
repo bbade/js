@@ -88,15 +88,6 @@ export class CloudSystem implements ParticleSystem {
         this.cloudParticles.push(particle);
     }
 
-
-    // setInitialColor(particle: Particle): void {
-    //     const normalizedY = particle.p.y / this.bounds.h;
-    //     const min = .5; // we'll never get this low
-    //     const max = 1;
-
-    //     const v = lerp(min, max, normalizedY);
-    // }
-
     processFrame(deltaT: number): void {
 
         /////// mouse silliness
@@ -124,7 +115,10 @@ export class CloudSystem implements ParticleSystem {
         }
 
         this.cloudParticles = this.cloudParticles.filter((p) => {
-            return p.p.x > -.2;
+           return  p.p.y <= this.bounds.y1 + p.size && 
+           p.p.x >= -2 * this.bounds.w && 
+           p.p.x <= 2 * this.bounds.w
+           && p.ageMs < 30*1000
         });
 
 
@@ -147,7 +141,11 @@ export class CloudSystem implements ParticleSystem {
         }
 
         this.rainParticles = this.rainParticles.filter((r) => {
-            return r.p.y <= this.bounds.y1 + r.size;
+            return r.p.y <= this.bounds.y1 + r.size && 
+               r.p.x >= -2 * this.bounds.w && 
+               r.p.x <= 2 * this.bounds.w
+               && r.ageMs < 30*1000
+               ;
         });
 
         /// output //
@@ -156,30 +154,15 @@ export class CloudSystem implements ParticleSystem {
     }
 
 
-
-    private updateParticle(particle: Particle, deltaT: number): void {
-        // particle.p.x += particle.v.x * deltaT / 1000;
-        // if (particle.p.x > this.bounds.w) {
-        //     particle.p.x = 0;
-        // }
-
-        // if (Math.random() < spec.rainProbability && this.rainCooldown <= 0) {
-        //     this.spawnRain(particle);
-        //     this.rainCooldown = spec.rainCooldown;
-        // }
-
-        // this.rainCooldown -= deltaT;
-    }
-
     maybeSpawnRain(cloudParticle: Particle): void {
-        if (Math.random() > 0.001) {
+        if (Math.random() > 0.02) {
             return
         }
         const rainParticle = Particle.create();
         rainParticle.p = new Vec2(cloudParticle.p.x, cloudParticle.p.y);
         rainParticle.v = cloudParticle.v.copy();
         rainParticle.color =  takeRandom(spec.palette);
-        rainParticle.size = .5
+        rainParticle.size = 1
         this.rainParticles.push(rainParticle);
     }
 
