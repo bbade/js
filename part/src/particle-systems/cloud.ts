@@ -1,11 +1,11 @@
 import { ParticleSystem, ParticleConfigure } from './interfaces';
 import { Rect } from "../math/Rect";
 import { Color, scaleBrightness } from "../Color";
-import { Particle } from '../Particle';
+import { Particle } from './Particle';
 import { Vec2 } from '../math/vec2';
 import { lerp, randomRange, takeRandom } from '../math/math';
 import { Circle, CircleUnion } from '../math/Circle';
-import { Mouse } from '../main';
+import { Mouse } from './particle-system-main';
 
 const spec = {
     numCloudParticles: 400,

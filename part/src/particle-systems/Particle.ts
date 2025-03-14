@@ -1,7 +1,7 @@
-import { Color } from "./Color";
-import { Config } from "./main";
-import { applyAccelleration, applyMovement } from "./math/physics";
-import { Vec2 } from "./math/vec2";
+import { Color } from "../Color";
+import { Config } from "./particle-system-main";
+import { applyAccelleration, applyMovement } from "../math/physics";
+import { Vec2 } from "../math/vec2";
 
 export class Particle {
     p: Vec2;

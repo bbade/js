@@ -1,9 +1,9 @@
 import { SystemConfig, ParticleSystem } from '../interfaces';
 import { Rect } from "../math/Rect";
 import { Color } from "../Color";
-import { Config } from '../main';
+import { Config } from './particle-system-main';
 import { randomRange } from '../math/math';
-import { Particle } from '../Particle';
+import { Particle } from './Particle';
 import { Vec2 } from '../math/vec2';
 
 export class RainSystem implements ParticleSystem {

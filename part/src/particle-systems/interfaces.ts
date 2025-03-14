@@ -1,5 +1,5 @@
 import { Rect } from "../math/Rect";
-import { Particle } from "../Particle";
+import { Particle } from "./Particle";
 
 export interface SystemConfig {
     numParticles: number;
