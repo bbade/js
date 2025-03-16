@@ -24,6 +24,17 @@ export class Color {
         const b = this.b.toString(16).padStart(2, '0');
         return `#${r}${g}${b}`;
     }
+
+    static readonly RED = new Color(255, 0, 0);
+    static readonly GREEN = new Color(0, 255, 0);
+    static readonly BLUE = new Color(0, 0, 255);
+    static readonly YELLOW = new Color(255, 255, 0);
+    static readonly CYAN = new Color(0, 255, 255);
+    static readonly MAGENTA = new Color(255, 0, 255);
+    static readonly PINK = new Color(255, 192, 203);
+    static readonly GRAY = new Color(128, 128, 128);
+    static readonly WHITE = new Color(255, 255, 255);
+    static readonly BLACK = new Color(0, 0, 0);
 }
 
 /**

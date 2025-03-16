@@ -115,7 +115,7 @@ export class CloudSystem implements ParticleSystem {
         }
 
         this.cloudParticles = this.cloudParticles.filter((p) => {
-           return  p.p.y <= this.bounds.y1 + p.size && 
+           return  p.p.y <= this.bounds.y1 + p.draw_size_px && 
            p.p.x >= -2 * this.bounds.w && 
            p.p.x <= 2 * this.bounds.w
            && p.ageMs < 30*1000
@@ -141,7 +141,7 @@ export class CloudSystem implements ParticleSystem {
         }
 
         this.rainParticles = this.rainParticles.filter((r) => {
-            return r.p.y <= this.bounds.y1 + r.size && 
+            return r.p.y <= this.bounds.y1 + r.draw_size_px && 
                r.p.x >= -2 * this.bounds.w && 
                r.p.x <= 2 * this.bounds.w
                && r.ageMs < 30*1000
@@ -162,7 +162,7 @@ export class CloudSystem implements ParticleSystem {
         rainParticle.p = new Vec2(cloudParticle.p.x, cloudParticle.p.y);
         rainParticle.v = cloudParticle.v.copy();
         rainParticle.color =  takeRandom(spec.palette);
-        rainParticle.size = 1
+        rainParticle.draw_size_px = 1
         this.rainParticles.push(rainParticle);
     }
 

@@ -46,7 +46,7 @@ export class FireSystem implements ParticleSystem {
             -randomRange(this.config.minYSpeed, this.config.maxYSpeed), // Negative for upward motion
         )
         particle.color = this.getColor(particle.y, null),
-        particle.size = Config.particleSize;
+        particle.draw_size_px = Config.particleSize;
 
         return particle;
     }

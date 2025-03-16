@@ -6,7 +6,10 @@ import { Vec2 } from "../math/vec2";
 export class Particle {
     p: Vec2;
     v: Vec2;
-    size: number; // if null, will use system's default
+    m: number =1; // mass, used for verlet integration / physics
+    a: Vec2; // used for verlet integration
+    draw_size_px: number; // if null, will use system's default. This size used only for drawing
+    r: number = .01; // radius in world-space. Used for collisons. 
     color: Color;
     age: number = 0; // how many frames its lived for
     ageMs: number = 0; // how many milliseconds its lived for
@@ -29,11 +32,13 @@ export class Particle {
 
     // todo, need to be able to project particle size into the normalized coordinates 
 
-    constructor(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize) {
+    constructor(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize, m: number = 1) {
         this.p = new Vec2(x, y);
         this.v = v;
+        this.m = m;
+        this.a = new Vec2();
         this.color = color;
-        this.size = size;
+        this.draw_size_px = size;
 
         this.age = 0;
         this.ageMs = 0;
@@ -47,12 +52,14 @@ export class Particle {
         return new Particle(p.x, p.y, v, color);
     }
 
-    init(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize): Particle {
+    init(x: number, y: number, v: Vec2, color: Color, size: number = Config.particleSize, m: number = 1,): Particle {
         this.x = x;
         this.y = y;
         this.v = v;
+        this.m = m;
+        this.a = new Vec2();
         this.color = color;
-        this.size = size;
+        this.draw_size_px = size;
 
         this.age = 0;
         this.ageMs = 0;
@@ -76,7 +83,7 @@ export class Particle {
     }
 
     normalizedSize(projection: Vec2): number {
-        return this.size * projection.x;
+        return this.draw_size_px * projection.x;
     }
 
     static normalizedSize(s: number, projection: Vec2): number {

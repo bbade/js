@@ -9,6 +9,7 @@ import { GravSystem } from './grav';
 import { CloudSystem } from './cloud';
 import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
+import { PhysicsSystem } from './physics-system';
 
 
 // --- Configuration ---
@@ -61,8 +62,8 @@ function drawParticle(ctx: CanvasRenderingContext2D, particle: Particle, particl
     ctx.fillRect(
         Math.floor(x),
         Math.floor(y),
-        particle.size,
-        particle.size
+        particle.draw_size_px,
+        particle.draw_size_px
     );
     return true;
 }
@@ -118,6 +119,8 @@ function startSystem(systemType: string) {
         activeSystem = new GravSystem(bounds, screenToNormal);
     } else if (systemType === 'clouds') {
         activeSystem = new CloudSystem(bounds);
+    } else if (systemType === 'spring') {
+        activeSystem = new PhysicsSystem(bounds);
     }
     
     activeSystem.initialize(); // Initialize

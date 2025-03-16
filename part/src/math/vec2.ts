@@ -29,6 +29,12 @@ export class Vec2 {
         return this;
     }
 
+    sub(other: Vec2): Vec2 {
+        this.x -= other.x;
+        this.y -= other.y;
+        return this;
+    }
+
     scale(s: number): Vec2 {
         this.x *= s;
         this.y *= s;
@@ -37,6 +43,18 @@ export class Vec2 {
 
     mult(other: Vec2): Vec2 {
         return new Vec2(this.x * other.x, this.y * other.y);
+    }
+
+    div(other: Vec2): Vec2 {
+        this.x /= other.x;
+        this.y /= other.y;
+        return this;
+    }
+
+    divS(s: number): Vec2 {
+        this.x /= s;
+        this.y /= s;
+        return this;
     }
 
     // copies, does not mutate
@@ -51,6 +69,10 @@ export class Vec2 {
             this.y /= length;
         }
         return this;
+    }
+
+    length(): number {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
     }
 
 }
@@ -74,5 +96,13 @@ export function add(v1: Vec2, v2: Vec2): Vec2 {
 
 export function mult(v1: Vec2, v2: Vec2): Vec2 {
     return new Vec2(v1.x * v2.x, v1.y * v2.y);
+}
+
+export function div(v1: Vec2, v2: Vec2): Vec2 {
+    return new Vec2(v1.x / v2.x, v1.y / v2.y);
+}
+
+export function divS(v: Vec2, s: number): Vec2 {
+    return new Vec2(v.x / s, v.y / s);
 }
 
