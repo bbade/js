@@ -10,6 +10,7 @@ import { CloudSystem } from './cloud';
 import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
 import { PhysicsSystem } from './physics-system';
+import { testMatrix } from '../test/testMatrix';
 
 
 // --- Configuration ---
@@ -131,7 +132,7 @@ function startSystem(systemType: string) {
 
 // --- Initialization & Main Loop ---
 
-function computeProjection(canvas: HTMLCanvasElement) {
+function computeProjectedBounds(canvas: HTMLCanvasElement) {
     const m = Math.max(canvas.width, canvas.height);
     screenToNormal = new Vec2(1 / m, 1 / m);
     normalToScreen = new Vec2(m,m);
@@ -144,6 +145,9 @@ function computeProjection(canvas: HTMLCanvasElement) {
       canvas.height / m
     );
 }
+
+
+
 
 // --- Mouse Event Listener ---
 canvas.addEventListener('mousemove', (event) => {
@@ -168,7 +172,7 @@ function init() {
     mainCtx.fillStyle = "#000";
     mainCtx.fillRect(0, 0, canvas.width, canvas.height);
     
-    computeProjection(canvas);
+    computeProjectedBounds(canvas);
     
     const systemSelect = document.getElementById('system-select') as HTMLSelectElement;
     
@@ -182,5 +186,7 @@ function init() {
 
     
 }
+
+testMatrix();
 
 init();
