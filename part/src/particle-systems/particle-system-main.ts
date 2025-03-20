@@ -10,8 +10,10 @@ import { CloudSystem } from './cloud';
 import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
 import { PhysicsSystem } from './physics-system';
-import { testMatrix } from '../test/testMatrix';
+import { runMatrixTests } from '../test/testMatrix';
 
+
+runMatrixTests()
 
 // --- Configuration ---
 export const Config = {
@@ -187,6 +189,5 @@ function init() {
     
 }
 
-testMatrix();
 
 init();

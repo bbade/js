@@ -1,3 +1,4 @@
+import { sortaEqual } from "./util";
 import { Vec2 } from "./vec2";
 
 export class Transform {
@@ -21,6 +22,34 @@ export class Matrix3 {
         if (elements.length !== 3 || elements[0].length !== 3) {
             throw new Error("Matrix must be 3x3");
         }
+    }
+
+    equals(other: Matrix3): boolean {
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                if (this.elements[i][j] !== other.elements[i][j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    sortaEquals(other: Matrix3): boolean {
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                if (!sortaEqual(this.elements[i][j], other.elements[i][j], .0001)) {
+                    console.log(`sortaEquals failed at element [${i}][${j}]: ${this.elements[i][j]} vs ${other.elements[i][j]}`);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    copy(): Matrix3 {
+        const newElements = this.elements.map(row => row.slice());
+        return new Matrix3(newElements);
     }
 
     static identity(): Matrix3 {
