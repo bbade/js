@@ -88,8 +88,8 @@ export class PhysicsSystem implements ParticleSystem {
         
         if (c.lastMouseEvent && c.lastMouseEvent.buttons === 1) { // Check for left click
             const rect = c.boundingClientRect
-            const screenx = (c.lastMouseEvent.clientX - rect.left);
-            const screeny = (c.lastMouseEvent.clientY - rect.top);
+            const screenx = (c.lastMouseEvent.clientX - rect.left) /2; // TODO: this /2 works, but why???/
+            const screeny = (c.lastMouseEvent.clientY - rect.top) /2; // TODO: this /2 works, but why???/
             const screenPoint = new Vec2(screenx, screeny);
             const mp = c.screenToWorldTransform.applyToVector2(screenPoint);
             const inBounds = this.bounds.contains(mp);
