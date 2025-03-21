@@ -82,7 +82,12 @@ export class Vec2 {
     dot(that: Vec2): number {
         return this.x*that.x + this.y*that.y;
     }
-
+    
+    distanceTo(that: Vec2): number {
+        const dx = this.x - that.x;
+        const dy = this.y - that.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 }
 
 

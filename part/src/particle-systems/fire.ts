@@ -3,7 +3,7 @@ import { Rect } from "../math/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from "./Particle";
 import { randomRange } from '../math/math';
-import { Config } from './particle-system-main';
+import { Config, UsefulContext } from './particle-system-main';
 import { Vec2 } from '../math/vec2';
 
 export class FireSystem implements ParticleSystem {
@@ -28,7 +28,11 @@ export class FireSystem implements ParticleSystem {
         return null; // Fire system doesn't have a fixed palette
     }
 
-    drawOverlay(): void {}
+    drawOverlay(context: UsefulContext): void {
+        // Example overlay drawing code
+        context.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        context.ctx.fillRect(10, 10, 100, 50);
+    }
 
     createParticle(recycled: Particle | null = null): Particle {
         if (this.config.spawnXVariance === undefined) { // Type guard

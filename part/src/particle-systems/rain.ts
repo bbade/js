@@ -1,7 +1,7 @@
 import { SystemConfig, ParticleSystem } from '../interfaces';
 import { Rect } from "../math/Rect";
 import { Color } from "../Color";
-import { Config } from './particle-system-main';
+import { Config, UsefulContext } from './particle-system-main';
 import { randomRange } from '../math/math';
 import { Particle } from './Particle';
 import { Vec2 } from '../math/vec2';
@@ -78,8 +78,8 @@ export class RainSystem implements ParticleSystem {
         }
     }
 
-    drawOverlay(context: CanvasRenderingContext2D): void {
-        drawText(context, 16, 24, 116, 50, "Rain\n15C", "#e6efff");
+    drawOverlay(context: UsefulContext): void {
+        drawText(context.ctx, 16, 24, 116, 50, "Rain\n15C", "#e6efff");
     }
 }
 

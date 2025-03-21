@@ -11,6 +11,7 @@ import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
 import { PhysicsSystem } from './physics-system';
 import { runMatrixTests } from '../test/testMatrix';
+import { Matrix3 } from '../math/Matrix';
 
 
 runMatrixTests()
@@ -23,15 +24,40 @@ export const Config = {
     
 };
 
-export var Mouse: Vec2 | null = null;
+export class UsefulContext {
+    constructor(
+        public readonly ctx: CanvasRenderingContext2D,
+        public readonly canvas: HTMLCanvasElement,
+        public readonly boundingClientRect: DOMRect,
+        public  screenToWorldTransform: Matrix3,
+        public  worldToScreenTransform: Matrix3,
+        public  lastMouseEvent: MouseEvent | null = null,
+    ) {
+        // ohai
+    }
+}
 
-var screenToNormal: Vec2;
-var normalToScreen: Vec2;
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+export var Mouse: Vec2 | null = null; // deprecated
+
+
+
+var screenToNormal: Vec2; // deprecated
+var normalToScreen: Vec2; // deprecated
 var bounds: Rect;
+
+const ctx: UsefulContext ={
+    ctx: canvas.getContext('2d') as CanvasRenderingContext2D,
+    canvas: canvas,
+    boundingClientRect: canvas.getBoundingClientRect(),
+    screenToWorldTransform:  Matrix3.identity(),
+    worldToScreenTransform:  Matrix3.identity(),
+    lastMouseEvent: null
+};
 
 
 // --- Setup Canvases ---
-const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const mainCtx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
 
 // --- Helper Functions ---
@@ -77,12 +103,14 @@ let activeSystem: ParticleSystem; // Keep track of the currently active system
 
 function update(deltaT: number) {
     if (activeSystem) {
-        activeSystem.processFrame(deltaT);
+        activeSystem.processFrame(deltaT, ctx);
     }
 }
 
 function renderParticles() {
     mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+    mainCtx.fillStyle = "#000"; // Set black background
+    mainCtx.fillRect(0, 0, canvas.width, canvas.height);
     if (activeSystem) {
         activeSystem.particles.forEach(p => drawParticle(mainCtx, p, Config.particleSize));
     }
@@ -97,7 +125,7 @@ function doFrame(timestamp: number) {
     update(deltaT);
     renderParticles();
     if (activeSystem && activeSystem.drawOverlay) { //check
-        activeSystem.drawOverlay(mainCtx);
+        activeSystem.drawOverlay(ctx);
     }
     
     lastTimestamp = timestamp;
@@ -134,19 +162,49 @@ function startSystem(systemType: string) {
 
 // --- Initialization & Main Loop ---
 
+
 function computeProjectedBounds(canvas: HTMLCanvasElement) {
     const m = Math.max(canvas.width, canvas.height);
     screenToNormal = new Vec2(1 / m, 1 / m);
-    normalToScreen = new Vec2(m,m);
+    normalToScreen = new Vec2(m, m);
 
     // make rect
     bounds = new Rect(
-      0,
-      0,
-      canvas.width / m,
-      canvas.height / m
+        0,
+        0,
+        canvas.width / m,
+        canvas.height / m
     );
+
+    // Create a Matrix3 for the projection from screen space to world space
+    ctx.screenToWorldTransform = new Matrix3([
+        [screenToNormal.x, 0, 0],
+        [0, screenToNormal.y, 0],
+        [0, 0, 1]
+    ]);
+
+    ctx.worldToScreenTransform = ctx.screenToWorldTransform.inverse();
 }
+
+
+
+canvas.addEventListener('mousemove', (event) => {
+    ctx.lastMouseEvent = event;
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width * canvas.width * screenToNormal.x;
+    const y = (event.clientY - rect.top) / rect.height * canvas.height * screenToNormal.y;
+
+    if (x >= 0 && x <= bounds.w && y >= 0 && y <= bounds.h) {
+        Mouse = new Vec2(x, y);
+    } else {
+        Mouse = null;
+    }
+});
+
+canvas.addEventListener('mouseleave', (event) => {
+    ctx.lastMouseEvent = event;
+    Mouse = null;
+});
 
 
 
@@ -169,8 +227,9 @@ canvas.addEventListener('mouseleave', () => {
     Mouse = null;
 });
 
+
+
 function init() {
-    
     mainCtx.fillStyle = "#000";
     mainCtx.fillRect(0, 0, canvas.width, canvas.height);
     

@@ -4,6 +4,7 @@ import { Damper, Spring } from "../math/Spring";
 import { divS, scale, Vec2 } from "../math/vec2";
 import { ParticleSystem } from "./interfaces";
 import { Particle } from "./Particle";
+import {   Mouse, UsefulContext } from "./particle-system-main";
 
 
 export class PhysicsSystem implements ParticleSystem {
@@ -14,6 +15,7 @@ export class PhysicsSystem implements ParticleSystem {
     private anchor: Particle;
     private spring: Spring;
     private gravity: Vec2 = new Vec2(0, 1);
+    private isDragging: boolean = false;
 
     private damper = new Damper(.001);
 
@@ -42,7 +44,7 @@ export class PhysicsSystem implements ParticleSystem {
         // setup done in constructor, make a new instance if you need to reset
     }
 
-    processFrame(deltaT: number): void {
+    processFrame(deltaT: number, ctx: UsefulContext): void {
         // setup for frame. Put bouncer in the list so that the renderer renders it
         this.particles = [this.bouncer, this.anchor];
 
@@ -56,19 +58,82 @@ export class PhysicsSystem implements ParticleSystem {
         const springF: Vec2 = this.spring.calculateForce(this.bouncer.p, this.anchor.p)
         applyForce(this.bouncer,  springF);
 
-        // Integrate
-        doEuler(this.bouncer, deltaT);
-        this.damper.applyDampingForce(this.bouncer.v);
+        if (!this.maybeHandleDrag(ctx)) {
+            // Integrate
+            doEuler(this.bouncer, deltaT);
+            this.damper.applyDampingForce(this.bouncer.v);
+        }
+
+    }
+
+    maybeHandleDrag(ctx:UsefulContext): boolean { 
+        const mouse: Vec2 | null = this.getMouseClick(ctx);
+        if (mouse == null) {
+            this.isDragging = false;
+            return false;
+        }
+        if (mouse.distanceTo(this.bouncer.p) > .2) {
+            this.isDragging = false;
+            return false;
+        }
+
+        this.isDragging = true;
+        this.bouncer.v = new Vec2(0, 0);
+        this.bouncer.p = new Vec2(mouse.x, mouse.y);
+        return true
+    }
+    
+    getMouseClick(c: UsefulContext): Vec2 | null {
+        // console.log(`lastMouseEvent type: ${lastMouseEvent?.type}, button?: ${lastMouseEvent?.buttons ==1}`);
+        
+        if (c.lastMouseEvent && c.lastMouseEvent.buttons === 1) { // Check for left click
+            const rect = c.boundingClientRect
+            const screenx = (c.lastMouseEvent.clientX - rect.left);
+            const screeny = (c.lastMouseEvent.clientY - rect.top);
+            const screenPoint = new Vec2(screenx, screeny);
+            const mp = c.screenToWorldTransform.applyToVector2(screenPoint);
+            const inBounds = this.bounds.contains(mp);
+
+            console.log("---------------------");
+            console.log(`Event clientX: ${c.lastMouseEvent.clientX}, clientY: ${c.lastMouseEvent.clientY}`);
+            console.log(`BoundingClientRect: left: ${rect.left}, top: ${rect.top}, width: ${rect.width}, height: ${rect.height}`);
+            console.log(`Bounds: ${JSON.stringify(this.bounds)}`);
+            console.log(`Mouse click at screen coordinates: (${screenx.toFixed(4)}, ${screeny.toFixed(4)})`);
+            console.log(`Transformed to world coordinates: (${mp.x.toFixed(4)}, ${mp.y.toFixed(4)})`);
+            console.log("Mouse click is within bounds?: " + inBounds);
+            console.log(`Bounds: (${this.bounds.x.toFixed(4)}, ${this.bounds.y.toFixed(4)}, ${this.bounds.w.toFixed(4)}, ${this.bounds.h.toFixed(4)})`);
+            console.log(`Bouncer position: (${this.bouncer.p.x.toFixed(4)}, ${this.bouncer.p.y.toFixed(4)})`);
+            
+            if (inBounds) {
+                return mp;
+            } else {
+                return null;
+            }
+
+          
+        }
+        return null;
     }
 
     
-    drawOverlay(context: CanvasRenderingContext2D): void {
+    drawOverlay(uc: UsefulContext): void {
+        const context = uc.ctx;
+
+        // Save the current transform
+        context.save();
+        context.lineWidth = .002;
+
+        // Apply the screenToWorld transform
+        uc.worldToScreenTransform.applyToCanvas2d(context);
+
         context.beginPath();
         context.moveTo(this.bouncer.x, this.bouncer.y);
         context.lineTo(this.anchor.x, this.anchor.y);
         context.strokeStyle = 'red';
-        context.lineWidth = 2;
         context.stroke();
+
+        // Restore the previous transform
+        context.restore();
     }
 }
 
