@@ -88,6 +88,16 @@ export class Vec2 {
         const dy = this.y - that.y;
         return Math.sqrt(dx * dx + dy * dy);
     }
+
+    negate(): Vec2 {
+        this.x = -this.x;
+        this.y = -this.y;
+        return this;
+    }
+
+    static negate(v: Vec2): Vec2 {
+        return new Vec2(-v.x, -v.y);
+    }
 }
 
 

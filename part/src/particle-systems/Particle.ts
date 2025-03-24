@@ -14,6 +14,8 @@ export class Particle {
     age: number = 0; // how many frames its lived for
     ageMs: number = 0; // how many milliseconds its lived for
 
+    debugForces:{f: Vec2, c: Color}[] = [];
+
     set x(x: number) {
         this.p.x = x;
     }
@@ -44,8 +46,10 @@ export class Particle {
         this.ageMs = 0;
     }
 
-    static fromArgs(args: { x: number; y: number; v: Vec2; color: Color; size: number; }) {
-        return new Particle(args.x, args.y, args.v, args.color, args.size);
+    static fromArgs(args: { x: number; y: number; v: Vec2; color: Color; size: number; m: number; }): Particle {
+        const p =  new Particle(args.x, args.y, args.v, args.color, args.size, args.m);
+
+        return p
     }
 
     static create(p: Vec2 = new Vec2(), v: Vec2 = new Vec2(), color: Color = new Color()) {

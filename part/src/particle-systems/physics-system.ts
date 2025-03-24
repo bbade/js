@@ -1,11 +1,28 @@
 import { Color } from "../Color";
 import { Rect } from "../math/Rect";
 import { Damper, Spring } from "../math/Spring";
-import { divS, scale, Vec2 } from "../math/vec2";
+import { add, divS, mult, scale, Vec2 } from "../math/vec2";
 import { ParticleSystem } from "./interfaces";
 import { Particle } from "./Particle";
 import {   Mouse, UsefulContext } from "./particle-system-main";
 
+class AppliedSpring {
+    constructor(
+        public readonly p1: Particle,
+        public readonly p2: Particle,
+        public readonly spring: Spring,
+    ) {}
+
+    apply() {
+        const force: Vec2 = this.spring.calculateForce(this.p1.p, this.p2.p);
+        const oppForce = Vec2.negate(force);
+        applyForce(this.p1, force);
+        applyForce(this.p2, oppForce); 
+
+        this.p1.debugForces.push({f: force, c: Color.GREEN});
+        this.p2.debugForces.push({f: oppForce, c: Color.GREEN});
+    }
+}
 
 export class PhysicsSystem implements ParticleSystem {
     particles: Particle[] = [];
@@ -13,8 +30,10 @@ export class PhysicsSystem implements ParticleSystem {
 
     private bouncer: Particle;
     private anchor: Particle;
-    private spring: Spring;
-    private gravity: Vec2 = new Vec2(0, 1);
+    private springs: AppliedSpring[] = [];
+    private gravityStrength = .05;
+    private gravityDownVector: Vec2 = new Vec2(0, this.gravityStrength);
+    private gravityPoint: Vec2;
     private isDragging: boolean = false;
 
     private damper = new Damper(.001);
@@ -25,19 +44,25 @@ export class PhysicsSystem implements ParticleSystem {
 
         const centerX = this.bounds.w / 2;
         const topY = this.bounds.y;
+
+        this.gravityPoint = new Vec2(centerX, this.bounds.y + this.bounds.h*.5);
         
         this.anchor = Particle.fromArgs({
-            x: centerX, y: bounds.y + bounds.h*.1,
-            v :  new Vec2(), color : Color.RED, size : 2
+            x: centerX,
+            y: bounds.y + bounds.h*.1,
+            v :  new Vec2(), color : Color.RED, size : 4,
+            m: 30
         })
         this.bouncer = Particle.fromArgs({
-            x: centerX, y: bounds.y + bounds.h*.2,
-            v :  new Vec2(), color : Color.MAGENTA, size : 2
+            x: centerX, 
+            y: bounds.y + bounds.h*.2,
+            v :  new Vec2(), color : Color.MAGENTA, size : 4,
+            m: 1
         })
 
         const k = 10;
-        const restlen = bounds.h *.2
-        this.spring = new Spring(k, restlen);
+        const restlen = bounds.h *.3
+        this.springs.push(new AppliedSpring(this.bouncer, this.anchor, new Spring(k, restlen)));
     }
 
     initialize(): void {
@@ -50,19 +75,28 @@ export class PhysicsSystem implements ParticleSystem {
 
         for ( const particle of this.particles) {
             particle.a = new Vec2();
+            particle.debugForces = [];
+            const g = getPointGravityVector(particle, this.gravityPoint, this.gravityStrength);
+            applyGravity(particle, g);
+            particle.debugForces.push({f: g, c: Color.YELLOW});
+
+            for (const spring of this.springs) {
+                spring.apply();
+            }
         }
 
-        /// Update the Accel of everything in the simulation
-        // TODO: we're just going to update the bouncer first
-        applyGravity(this.bouncer, this.gravity);
-        const springF: Vec2 = this.spring.calculateForce(this.bouncer.p, this.anchor.p)
-        applyForce(this.bouncer,  springF);
+
 
         if (!this.maybeHandleDrag(ctx)) {
             // Integrate
             doEuler(this.bouncer, deltaT);
-            this.damper.applyDampingForce(this.bouncer.v);
         }
+
+        doEuler(this.anchor, deltaT);
+
+        for (const particle of this.particles) {
+            this.damper.applyDampingForce(particle.v);
+        }   
 
     }
 
@@ -132,6 +166,23 @@ export class PhysicsSystem implements ParticleSystem {
         context.strokeStyle = 'red';
         context.stroke();
 
+        for (const particle of this.particles) {
+            for (const pf of particle.debugForces) {
+                context.beginPath();
+                context.moveTo(particle.x, particle.y);
+                context.lineTo(particle.x + pf.f.x, particle.y + pf.f.y);
+                context.strokeStyle = pf.c.toHexStr();
+                context.stroke();
+            }
+        }
+
+
+        // Draw a yellow circle at the gravity point
+        context.beginPath();
+        context.arc(this.gravityPoint.x, this.gravityPoint.y, 0.005, 0, 2 * Math.PI);
+        context.fillStyle = 'yellow';
+        context.fill();
+
         // Restore the previous transform
         context.restore();
     }
@@ -149,8 +200,15 @@ function applyForce(particle: Particle, force: Vec2) {
     particle.a.add(a);
 }
 
+
 function applyGravity(particle: Particle, gravity: Vec2) {
     particle.a.add(gravity);
+}
+
+function getPointGravityVector(particle: Particle, gravityLocation: Vec2, gravityStrength: number) {
+    const dir = particle.p.pointAt(gravityLocation).normalize();
+    const forceToApply = scale(dir, gravityStrength);
+    return forceToApply;
 }
 
 /**
@@ -164,4 +222,6 @@ function doEuler(particle: Particle, dtMs: number) {
     particle.v.add(deltaV);
     const deltaP = scale(particle.v, timeScale);
     particle.p.add(deltaP);
+
+    particle.debugForces.push({f: particle.v, c: Color.BLUE});
 }
