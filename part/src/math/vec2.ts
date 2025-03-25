@@ -98,6 +98,22 @@ export class Vec2 {
     static negate(v: Vec2): Vec2 {
         return new Vec2(-v.x, -v.y);
     }
+
+    rotateDeg(origin: Vec2, d: number): Vec2 {
+        const rad = (d * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+    
+        const translatedX = this.x - origin.x;
+        const translatedY = this.y - origin.y;
+    
+        const rotatedX = translatedX * cos - translatedY * sin;
+        const rotatedY = translatedX * sin + translatedY * cos;
+
+        this.x = rotatedX + origin.x;
+        this.y = rotatedY + origin.y;
+        return this;
+    }
 }
 
 
@@ -148,6 +164,25 @@ export function div(v1: Vec2, v2: Vec2): Vec2 {
 
 export function divS(v: Vec2, s: number): Vec2 {
     return new Vec2(v.x / s, v.y / s);
+}
+
+
+export function vdistance(v1: Vec2, v2: Vec2): number {
+    return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
+}
+
+export function rotateDeg(point: Vec2, origin: Vec2, d: number): Vec2 {
+    const rad = (d * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    const translatedX = point.x - origin.x;
+    const translatedY = point.y - origin.y;
+
+    const rotatedX = translatedX * cos - translatedY * sin;
+    const rotatedY = translatedX * sin + translatedY * cos;
+
+    return new Vec2(rotatedX + origin.x, rotatedY + origin.y);
 }
 
 

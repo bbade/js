@@ -1,7 +1,7 @@
 import { Color } from "../Color";
 import { Rect } from "../math/Rect";
 import { Damper, Spring } from "../math/Spring";
-import { add, divS, mult, scale, Vec2 } from "../math/vec2";
+import { add, divS, mult, scale, vdistance, Vec2 } from "../math/vec2";
 import { ParticleSystem } from "./interfaces";
 import { Particle } from "./Particle";
 import {   Mouse, UsefulContext } from "./particle-system-main";
@@ -30,6 +30,7 @@ export class PhysicsSystem implements ParticleSystem {
 
     private bouncer: Particle;
     private anchor: Particle;
+    private other: Particle;
     private springs: AppliedSpring[] = [];
     private gravityStrength = .05;
     private gravityDownVector: Vec2 = new Vec2(0, this.gravityStrength);
@@ -50,19 +51,59 @@ export class PhysicsSystem implements ParticleSystem {
         this.anchor = Particle.fromArgs({
             x: centerX,
             y: bounds.y + bounds.h*.1,
-            v :  new Vec2(), color : Color.RED, size : 4,
+            v :  new Vec2(), 
+            color : Color.RED, size : 4,
             m: 30
         })
         this.bouncer = Particle.fromArgs({
             x: centerX, 
             y: bounds.y + bounds.h*.2,
-            v :  new Vec2(), color : Color.MAGENTA, size : 4,
+            v :  new Vec2(),
+            color : Color.MAGENTA, size : 4,
             m: 1
         })
 
+
+        const otherPt = this.bouncer.p.pointAt(this.anchor.p).rotateDeg(this.bouncer.p, -45);
+        this.other = Particle.fromArgs({
+            x: otherPt.x,
+            y: otherPt.y, 
+            v :  new Vec2(), 
+            color : Color.GREEN, size : 4,
+            m: 1
+        })
+
+        const centerPt = this.findCenter(this.bouncer.p, this.anchor.p, this.other.p);
+        const c_a_restlen = vdistance(centerPt, this.anchor.p);
+        const c_b_restlen = vdistance(centerPt, this.bouncer.p);
+        const c_o_restlen = vdistance(centerPt, this.other.p);
+        const centerParticle = Particle.fromArgs({
+            x: centerPt.x,
+            y: centerPt.y, 
+            v :  new Vec2(), 
+            color : Color.CYAN, size : 4,
+            m: 1
+        });
+
         const k = 10;
         const restlen = bounds.h *.3
-        this.springs.push(new AppliedSpring(this.bouncer, this.anchor, new Spring(k, restlen)));
+        const springTemplate = new Spring(k, restlen);
+        this.springs.push(new AppliedSpring(this.bouncer, this.anchor, springTemplate ));
+        this.springs.push(new AppliedSpring(this.bouncer, this.other, springTemplate ));
+        this.springs.push(new AppliedSpring(this.other, this.anchor, springTemplate ));
+
+        // connect center to everything
+        this.springs.push(new AppliedSpring(centerParticle, this.anchor, new Spring(k, c_a_restlen)));
+        this.springs.push(new AppliedSpring(centerParticle, this.bouncer, new Spring(k, c_b_restlen)));
+        this.springs.push(new AppliedSpring(centerParticle, this.other, new Spring(k, c_o_restlen)));
+
+        this.particles = [this.bouncer, this.anchor, this.other, centerParticle];
+    }
+
+    private findCenter(p1: Vec2, p2: Vec2, p3: Vec2): Vec2 {
+        const x = (p1.x + p2.x + p3.x) / 3;
+        const y = (p1.y + p2.y + p3.y) / 3;
+        return new Vec2(x, y);
     }
 
     initialize(): void {
@@ -71,7 +112,7 @@ export class PhysicsSystem implements ParticleSystem {
 
     processFrame(deltaT: number, ctx: UsefulContext): void {
         // setup for frame. Put bouncer in the list so that the renderer renders it
-        this.particles = [this.bouncer, this.anchor];
+        
 
         for ( const particle of this.particles) {
             particle.a = new Vec2();
@@ -85,19 +126,17 @@ export class PhysicsSystem implements ParticleSystem {
             }
         }
 
+        this.bouncer.beingDragged = this.maybeHandleDrag(ctx)
 
-
-        if (!this.maybeHandleDrag(ctx)) {
-            // Integrate
-            doEuler(this.bouncer, deltaT);
-        }
-
-        doEuler(this.anchor, deltaT);
 
         for (const particle of this.particles) {
-            this.damper.applyDampingForce(particle.v);
+            if (particle.beingDragged) {
+                continue;
+            } else {
+                this.damper.applyDampingForce(particle.v);
+                doEuler(particle, deltaT);
+            }
         }   
-
     }
 
     maybeHandleDrag(ctx:UsefulContext): boolean { 
@@ -114,6 +153,7 @@ export class PhysicsSystem implements ParticleSystem {
         this.isDragging = true;
         this.bouncer.v = new Vec2(0, 0);
         this.bouncer.p = new Vec2(mouse.x, mouse.y);
+        this.bouncer.beingDragged = true;
         return true
     }
     

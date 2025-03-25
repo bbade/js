@@ -15,6 +15,7 @@ export class Particle {
     ageMs: number = 0; // how many milliseconds its lived for
 
     debugForces:{f: Vec2, c: Color}[] = [];
+    beingDragged: boolean = false; // if true, integration
 
     set x(x: number) {
         this.p.x = x;
