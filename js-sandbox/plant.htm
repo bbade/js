@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Procedural Plant (L-System)</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+  }
+  canvas {
+    border: 1px solid #333;
+    image-rendering: pixelated; /* Crucial for pixel art look */
+  }
+</style>
+</head>
+<body>
+
+<canvas id="plantCanvas" width="256" height="256"></canvas>
+
+<script>
+  const canvas = document.getElementById('plantCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function drawPixel(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, 1, 1);
+  }
+
+  function lSystemPlant() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+    // --- L-System Parameters ---
+    let axiom = 'X';
+    let rules = {
+      'X': 'F-[[X]+X]+F[+FX]-X', // More branching, adjusted angles
+      'F': 'FF',          // Slightly longer segments
+    };
+    let iterations = 5; // Reduced to 5 iterations
+    let angle = 20 + Math.random() * 10; // Angle between 20 and 30 degrees
+    let startX = canvas.width / 2;
+    let startY = canvas.height;
+    let length = 8; // Increased length to compensate
+
+
+    // --- L-System Generation ---
+    function generate(axiom, rules, iterations) {
+      if (iterations <= 0) {
+          return axiom; // Termination condition
+      }
+      let next = '';
+      for (let char of axiom) {
+        next += rules[char] || char;
+      }
+      return generate(next, rules, iterations - 1); // Recursive call with decremented iterations
+    }
+
+    let sentence = generate(axiom, rules, iterations);
+
+    // --- Drawing ---
+    let stack = [];
+    let x = startX;
+    let y = startY;
+    let currentAngle = -90; // Start pointing upwards
+
+    // Brown for the base (stem)
+    drawPixel(startX, startY - 1, '#8B4513'); //Single Pixel
+    drawPixel(startX, startY, '#8B4513');
+
+
+    for (let char of sentence) {
+      switch (char) {
+        case 'F':
+          // Draw a line segment
+          let newX = x + length * Math.cos(currentAngle * Math.PI / 180);
+          let newY = y + length * Math.sin(currentAngle * Math.PI / 180);
+
+          // Draw the line, pixel by pixel.
+          drawLine(x, y, newX, newY, '#008000'); // Green color
+
+          x = newX;
+          y = newY;
+          break;
+        case '+':
+          // Turn right
+          currentAngle += angle;
+          break;
+        case '-':
+          // Turn left
+          currentAngle -= angle;
+          break;
+        case '[':
+          // Push position and angle onto stack
+          stack.push({ x: x, y: y, angle: currentAngle });
+          break;
+        case ']':
+          // Pop position and angle from stack
+          let popped = stack.pop();
+          if (popped) { // Ensure stack wasn't empty
+            x = popped.x;
+            y = popped.y;
+            currentAngle = popped.angle;
+          }
+          break;
+      }
+    }
+  }
+
+  function drawLine(x1, y1, x2, y2, color) {
+    // Bresenham's line algorithm (for pixel-perfect lines)
+    x1 = Math.round(x1); // Ensure integer coordinates
+    y1 = Math.round(y1);
+    x2 = Math.round(x2);
+    y2 = Math.round(y2);
+
+
+    let dx = Math.abs(x2 - x1);
+    let dy = Math.abs(y2 - y1);
+    let sx = (x1 < x2) ? 1 : -1;
+    let sy = (y1 < y2) ? 1 : -1;
+    let err = dx - dy;
+
+    while (true) {
+        if(x1 >= 0 && x1 < canvas.width && y1 >=0 && y1 < canvas.height) {
+            drawPixel(x1, y1, color);
+        }
+
+
+      if (x1 === x2 && y1 === y2) break;
+      let e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x1 += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y1 += sy;
+      }
+    }
+  }
+
+
+  lSystemPlant(); // Initial drawing
+  //Optionally, add a button or event listener to redraw on demand:
+  window.addEventListener('click', lSystemPlant);
+
+</script>
+
+</body>
+</html>

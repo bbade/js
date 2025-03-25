@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Fjord Heightmap</title>
+<style>
+  body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f0f0; }
+  canvas { border: 1px solid black; }
+</style>
+</head>
+<body>
+<canvas id="heightmapCanvas" width="512" height="512"></canvas>
+<script>
+const canvas = document.getElementById('heightmapCanvas');
+const ctx = canvas.getContext('2d');
+const width = canvas.width;
+const height = canvas.height;
+const imageData = ctx.createImageData(width, height);
+const data = imageData.data;
+
+function setPixel(x, y, value) {
+    const index = (y * width + x) * 4;
+    data[index] = value;
+    data[index + 1] = value;
+    data[index + 2] = value;
+    data[index + 3] = 255;
+}
+
+// --- Value Noise ---
+function rand(x, y) {
+    let n = x + y * 57;
+    n = (n << 13) ^ n;
+    return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+}
+function smoothNoise(x,y){
+    let corners = (rand(x-1, y-1) + rand(x+1, y-1) + rand(x-1, y+1) + rand(x+1, y+1)) / 16;
+    let sides   = (rand(x-1, y) + rand(x+1, y) + rand(x, y-1) + rand(x, y+1)) /  8;
+    let center  =  rand(x, y) / 4;
+    return corners + sides + center;
+}
+function interpolatedNoise(x, y){
+
+    let integer_X    = Math.floor(x);
+    let fractional_X = x - integer_X;
+
+    let integer_Y    = Math.floor(y);
+    let fractional_Y = y - integer_Y;
+
+    let v1 = smoothNoise(integer_X,     integer_Y);
+    let v2 = smoothNoise(integer_X + 1, integer_Y);
+    let v3 = smoothNoise(integer_X,     integer_Y + 1);
+    let v4 = smoothNoise(integer_X + 1, integer_Y + 1);
+
+    let i1 = cosineInterpolate(v1 , v2 , fractional_X);
+    let i2 = cosineInterpolate(v3 , v4 , fractional_X);
+
+    return cosineInterpolate(i1 , i2 , fractional_Y);
+
+}
+function cosineInterpolate(a, b, x)
+{
+	let ft = x * Math.PI;
+	let f = (1 - Math.cos(ft)) * 0.5;
+
+	return  a*(1-f) + b*f;
+}
+function perlinNoise(x, y, octaves, persistence, lacunarity) {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+    for(let i=0; i<octaves; i++) {
+        total += interpolatedNoise(x * frequency, y * frequency) * amplitude;
+        maxValue += amplitude;
+        amplitude *= persistence;
+        frequency *= lacunarity;
+    }
+    return total/maxValue;
+}
+
+// --- Fjord Generation ---
+
+function generateFjord() {
+    // 1. Initial heightmap (Perlin noise + slight slope)
+    const heightmap = [];
+    for (let y = 0; y < height; y++) {
+        heightmap[y] = [];
+        for (let x = 0; x < width; x++) {
+            let baseElevation = 0.8 - (y / height) * 0.4; // Gentle slope
+            let noise = perlinNoise(x / width * 4, y / height * 4, 3, 0.5, 2.0) * 0.4 + 0.1;
+            heightmap[y][x] = baseElevation + noise;
+            heightmap[y][x] = Math.max(0, Math.min(1, heightmap[y][x]))
+        }
+    }
+
+    // 2. Define the main channel (curved) - increase erodibility
+    const mainChannel = [];
+    for (let y = 0; y < height; y++) {
+        const ny = y / height;
+        const centralX = 0.5 + (perlinNoise(ny * 2, 0, 2, 0.5, 2.0) - 0.5) * 0.3; // Wider curve
+        const channelX = Math.floor(centralX * width);
+        mainChannel.push(channelX);
+
+        // Increase erodibility near the main channel
+        for (let x = Math.max(0, channelX - 60); x < Math.min(width, channelX + 60); x++) {
+            let distFromCenter = Math.abs(x - channelX);
+            let channelInfluence = 1 - (distFromCenter / 60);
+            // We'll use this influence later during erosion
+        }
+    }
+
+    // 3. Erosion (with bias and main channel influence)
+    const iterations = 250000;
+    for (let i = 0; i < iterations; i++) {
+        let x = Math.floor(Math.random() * width);
+        let y = Math.floor(Math.random() * height);
+
+          // Bias towards starting near the main channel
+          if (Math.random() < 0.6) { // Slightly reduced bias
+            y = Math.floor(Math.random() * height);
+            x = Math.floor(mainChannel[y] + (Math.random() - 0.5) * 100);
+            x = Math.max(0, Math.min(width - 1, x));
+        }
+
+        for (let j = 0; j < 40; j++) { // Moderate number of steps
+            let lowestX = x;
+            let lowestY = y;
+            let lowestHeight = heightmap[y][x];
+
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    if (dx === 0 && dy === 0) continue;
+
+                    let nx = x + dx;
+                    let ny = y + dy;
+
+                    if (nx >= 0; nx < width && ny >= 0 && ny < height) {
+                         let heightDiff = heightmap[y][x] - heightmap[ny][nx];
+
+                        // Randomized Downhill Bias
+                        if (dy > 0) {
+                            heightDiff += (Math.random() * 0.008); // Smaller, random bias
+                        }
+
+                        if (heightDiff >  0)
+                        {
+                            lowestHeight = heightmap[ny][nx];
+                            lowestX = nx;
+                            lowestY = ny;
+                        }
+                    }
+                }
+            }
+
+              //If we are at the lowest point, stop
+              if(lowestX == x && lowestY == y) break;
+
+            // Erosion (influenced by main channel)
+            let distFromChannel = Math.abs(x - mainChannel[y]);
+            let channelInfluence = 1 - (distFromChannel / 60);
+            channelInfluence = Math.max(0, channelInfluence); // Ensure non-negative
+
+            let erodeAmount = 0.015 + channelInfluence * 0.02; // More erosion near channel
+            heightmap[y][x] = Math.max(0,heightmap[y][x] - erodeAmount);
+
+            x = lowestX;
+            y = lowestY;
+        }
+    }
+
+    // 4. Render
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let elevation = heightmap[y][x];
+            setPixel(x, y, Math.floor(elevation * 255));
+        }
+    }
+}
+
+generateFjord();
+ctx.putImageData(imageData, 0, 0);
+</script>
