@@ -1,4 +1,4 @@
-import { Rect } from "./Rect";
+import { Rect } from "./geometry/Rect";
 import { Vec2 } from "./vec2";
 
 // Helper function (moved here to keep things self-contained)

@@ -1,5 +1,5 @@
 import { ParticleConfigure, ParticleSystem } from './interfaces'
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Color } from "../Color";
 import { Config, Mouse } from './particle-system-main';
 import { isOutOfBounds } from '../math/math';

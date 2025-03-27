@@ -1,10 +1,10 @@
 import { ParticleSystem, ParticleConfigure } from './interfaces';
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from './Particle';
 import { Vec2 } from '../math/vec2';
 import { lerp, randomRange, takeRandom } from '../math/math';
-import { Circle, CircleUnion } from '../math/Circle';
+import { Circle, CircleUnion } from '../math/geometry/Circle';
 import { Mouse } from './particle-system-main';
 
 const spec = {

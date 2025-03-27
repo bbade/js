@@ -1,5 +1,5 @@
 import { BallsGenericSystem, GenericSystemSpec } from "./generic";
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Color } from "../Color";
 import { Particle } from "./Particle";
 import { Vec2 } from "../math/vec2";

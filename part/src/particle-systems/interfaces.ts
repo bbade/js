@@ -1,4 +1,4 @@
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Particle } from "./Particle";
 import { UsefulContext } from "./particle-system-main";
 

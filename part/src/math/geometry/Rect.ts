@@ -1,7 +1,10 @@
-import { randomRange } from "./math";
-import { Vec2 } from "./vec2";
+import { randomRange } from "../math";
+import { Vec2 } from "../vec2";
 
 
+/**
+ * A rectangle that is axis-aligned.
+ */
 export class Rect {
     x: number;
     y: number;
@@ -13,6 +16,10 @@ export class Rect {
         this.y = y;
         this.w = w;
         this.h = h;
+    }
+
+    static Square(x: number, y: number, size: number): Rect {
+        return new Rect(x, y, size, size);
     }
 
     get x1(): number {
@@ -36,4 +43,16 @@ export class Rect {
     toString(): string {
         return `Rect(x: ${this.x}, y: ${this.y}, w: ${this.w}, h: ${this.h})`;
     }
+}
+
+
+// TODO: unused, just an idea.
+// do we need this, or do we just apply transforms to rect? 
+class PointRect{
+    constructor(
+        public p0: Vec2,
+        public p1: Vec2,
+        public dx: number,
+        public dy: number,
+    )  {}
 }

@@ -1,5 +1,5 @@
 import { SystemConfig, ParticleSystem } from './interfaces';
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Color } from "../Color";
 import { Particle } from "./Particle";
 import { scale, Vec2 } from "../math/vec2";

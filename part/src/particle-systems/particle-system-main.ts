@@ -1,7 +1,7 @@
 import { RainSystem } from './rain';
 import { FireSystem } from './fire';
 import { SystemConfig, ParticleSystem } from './interfaces';
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Particle } from "./Particle";
 import { BallsGenericSystem } from './generic';
 import { RandomSys, Fountain } from './generic-systems';

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isometric Terrain Canvas V4</title> <style>
+        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background-color: #333; }
+        canvas { display: block; background-color: #555; }
+    </style>
+</head>
+<body>
+    <canvas id="isoCanvas"></canvas>
+
+    <script>
+        // --- Configuration ---
+        const config = {
+            MAP_WIDTH: 32, MAP_HEIGHT: 32, TILE_WIDTH_HALF: 32, TILE_HEIGHT_HALF: 16,
+            ELEVATION_UNIT_HEIGHT: 8, PAN_SPEED: 40, MIN_ZOOM: 0.25, MAX_ZOOM: 4.0,
+            ZOOM_INCREMENT: 0.1,
+            COLORS: {
+                grass1: '#6A994E', grass2: '#A7C957', sideFactor: 0.7,
+                hoverHighlightFactor: 1.2, stroke: '#333333', background: '#555555'
+            },
+        };
+        // --- Calculated Config ---
+        config.TILE_WIDTH = config.TILE_WIDTH_HALF * 2;
+        config.TILE_HEIGHT = config.TILE_HEIGHT_HALF * 2;
+        config.COLORS.grass1_dark = adjustColorBrightness(config.COLORS.grass1, config.COLORS.sideFactor);
+        config.COLORS.grass2_dark = adjustColorBrightness(config.COLORS.grass2, config.COLORS.sideFactor);
+
+        // --- Global State ---
+        const canvas = document.getElementById('isoCanvas');
+        const ctx = canvas.getContext('2d');
+        let mapData = [];
+        let cameraOffsetX = 0, cameraOffsetY = 0, zoomLevel = 1.0;
+        let originX = 0, originY = 0;
+        let currentHoveredTile = null, needsRedraw = true;
+
+        // --- Helper Functions (getScaled..., adjustColorBrightness) ---
+        function getScaledTileWidthHalf() { return config.TILE_WIDTH_HALF * zoomLevel; }
+        function getScaledTileHeightHalf() { return config.TILE_HEIGHT_HALF * zoomLevel; }
+        function getScaledElevationUnitHeight() { return config.ELEVATION_UNIT_HEIGHT * zoomLevel; }
+        function adjustColorBrightness(hex, factor) {
+             if (!hex || hex.length < 7) return '#000000';
+             let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+             r = Math.min(255, Math.max(0, Math.round(r * factor)));
+             g = Math.min(255, Math.max(0, Math.round(g * factor)));
+             b = Math.min(255, Math.max(0, Math.round(b * factor)));
+             return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+
+        // --- Initialization (initMap) ---
+        function initMap() {
+            console.log("Initializing map..."); // (Code unchanged)
+            mapData = [];
+            for (let y = 0; y < config.MAP_HEIGHT; y++) {
+                const row = [];
+                for (let x = 0; x < config.MAP_WIDTH; x++) {
+                    const isEven = (x + y) % 2 === 0;
+                    const baseColor = isEven ? config.COLORS.grass1 : config.COLORS.grass2;
+                    const sideColor = isEven ? config.COLORS.grass1_dark : config.COLORS.grass2_dark;
+                    row.push({ elevation: 0, baseColor: baseColor, sideColor: sideColor, isHovered: false });
+                }
+                mapData.push(row);
+            }
+             console.log(`Map initialized (${config.MAP_WIDTH}x${config.MAP_HEIGHT})`);
+        }
+
+        // --- Coordinate Transformations (worldToScreen, screenToWorld) ---
+        // (Code unchanged)
+        function worldToScreen(worldX, worldY, elevation) {
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+            const scaledElevationHeight = getScaledElevationUnitHeight();
+            const screenX = originX + (worldX - worldY) * scaledWidthHalf + cameraOffsetX;
+            const screenY = originY + (worldX + worldY) * scaledHeightHalf - elevation * scaledElevationHeight + cameraOffsetY;
+            return { screenX, screenY };
+        }
+        function screenToWorld(screenX, screenY) {
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+            const adjScreenX = screenX - originX - cameraOffsetX;
+            const adjScreenY = screenY - originY - cameraOffsetY;
+            const isoX = adjScreenX / scaledWidthHalf;
+            const isoY = adjScreenY / scaledHeightHalf;
+            const worldX = Math.floor((isoX + isoY) / 2);
+            const worldY = Math.floor((isoY - isoX) / 2);
+            return { worldX, worldY };
+        }
+
+        // --- Drawing (drawTile, drawMap) ---
+        // (Code unchanged)
+         function drawTile(worldX, worldY, tileData) {
+            const { elevation, baseColor, sideColor, isHovered } = tileData;
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+            const scaledTileHeight = scaledHeightHalf * 2;
+            const scaledElevationHeight = getScaledElevationUnitHeight();
+            const { screenX, screenY } = worldToScreen(worldX, worldY, elevation);
+
+            const topX = screenX, topY = screenY;
+            const rightX = screenX + scaledWidthHalf, rightY = screenY + scaledHeightHalf;
+            const bottomX = screenX, bottomY = screenY + scaledTileHeight;
+            const leftX = screenX - scaledWidthHalf, leftY = screenY + scaledHeightHalf;
+
+            if (elevation > 0) {
+                const elevationPixelHeight = elevation * scaledElevationHeight;
+                const baseRightY = rightY + elevationPixelHeight;
+                const baseBottomY = bottomY + elevationPixelHeight;
+                const baseLeftY = leftY + elevationPixelHeight;
+
+                ctx.fillStyle = sideColor;
+                ctx.strokeStyle = config.COLORS.stroke;
+                ctx.lineWidth = Math.max(0.5, 0.5 * zoomLevel);
+
+                ctx.beginPath(); ctx.moveTo(rightX, rightY); ctx.lineTo(bottomX, bottomY);
+                ctx.lineTo(bottomX, baseBottomY); ctx.lineTo(rightX, baseRightY); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.beginPath(); ctx.moveTo(leftX, leftY); ctx.lineTo(bottomX, bottomY);
+                ctx.lineTo(bottomX, baseBottomY); ctx.lineTo(leftX, baseLeftY); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+            }
+
+            const topFillColor = isHovered ? adjustColorBrightness(baseColor, config.COLORS.hoverHighlightFactor) : baseColor;
+            ctx.beginPath(); ctx.moveTo(topX, topY); ctx.lineTo(rightX, rightY);
+            ctx.lineTo(bottomX, bottomY); ctx.lineTo(leftX, leftY); ctx.closePath();
+            ctx.fillStyle = topFillColor;
+            ctx.strokeStyle = config.COLORS.stroke;
+            ctx.lineWidth = Math.max(0.5, 1 * zoomLevel);
+            ctx.fill(); ctx.stroke();
+        }
+        function drawMap() {
+            ctx.fillStyle = config.COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let y = 0; y < config.MAP_HEIGHT; y++) {
+                for (let x = 0; x < config.MAP_WIDTH; x++) {
+                    if (mapData[y]?.[x]) { drawTile(x, y, mapData[y][x]); }
+                }
+            }
+            needsRedraw = false;
+        }
+
+        // --- Event Handling ---
+
+        /** Handles mouse movement */
+        // (Code unchanged)
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+            let tileChanged = false;
+            let newHoveredTile = null;
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                newHoveredTile = { x: worldX, y: worldY };
+            }
+            if (!currentHoveredTile && newHoveredTile || /* ...etc */ currentHoveredTile && newHoveredTile && (currentHoveredTile.x !== newHoveredTile.x || currentHoveredTile.y !== newHoveredTile.y)) {
+                tileChanged = true;
+            }
+            if (tileChanged) {
+                 if (currentHoveredTile && mapData[currentHoveredTile.y]?.[currentHoveredTile.x]) { mapData[currentHoveredTile.y][currentHoveredTile.x].isHovered = false; }
+                 if (newHoveredTile && mapData[newHoveredTile.y]?.[newHoveredTile.x]) { mapData[newHoveredTile.y][newHoveredTile.x].isHovered = true; }
+                 currentHoveredTile = newHoveredTile;
+                 needsRedraw = true;
+            }
+        }
+
+        /** Handles LEFT mouse clicks ONLY */
+        // **** MODIFIED ****
+        function handleClick(event) {
+            // We only handle left click (button 0) here now
+            if (event.button !== 0) {
+                return; // Ignore right/middle clicks in this handler
+            }
+
+            event.preventDefault(); // Still prevent default for left click if needed
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            console.log(`Left Click detected. Button: ${event.button}, Screen: (${mouseX}, ${mouseY})`);
+
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+            console.log(`Converted to World: (${worldX}, ${worldY})`);
+
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                const tile = mapData[worldY][worldX];
+                tile.elevation += 1; // Increase elevation
+                console.log(`Raised tile (${worldX}, ${worldY}) to elevation ${tile.elevation}`);
+                needsRedraw = true; // Request redraw
+            } else {
+                console.log("Left Click outside map bounds.");
+            }
+        }
+
+        /** Handles Right-Click logic (previously just prevented default) */
+        // **** MODIFIED ****
+        function handleContextMenu(event) {
+            event.preventDefault(); // Prevent the browser's context menu
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+             // Log detection of the contextmenu event
+            console.log(`ContextMenu event detected. Screen: (${mouseX}, ${mouseY})`);
+
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+            console.log(`Converted to World (for right-click): (${worldX}, ${worldY})`);
+
+            // --- Logic moved from handleClick (for button 2) ---
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                const tile = mapData[worldY][worldX];
+                let changed = false;
+                if (tile.elevation > 0) { // Only lower if above 0
+                    tile.elevation -= 1;
+                    console.log(`Lowered tile (${worldX}, ${worldY}) via ContextMenu to elevation ${tile.elevation}`);
+                    changed = true;
+                } else {
+                    console.log(`Tile (${worldX}, ${worldY}) already at minimum elevation 0 (ContextMenu).`);
+                }
+
+                if (changed) {
+                    needsRedraw = true; // Request redraw
+                }
+            } else {
+                 console.log("Right Click outside map bounds.");
+            }
+            // --- End of moved logic ---
+        }
+
+        /** Handles keyboard input */
+        // (Code unchanged, includes zoom logic)
+         function handleKeyDown(event) {
+            let moved = false;
+            let zoomed = false;
+            switch(event.key.toLowerCase()) { /* ... W,A,S,D cases ... */
+                case 'w': case 'arrowup':    cameraOffsetY += config.PAN_SPEED; moved = true; break;
+                case 's': case 'arrowdown':  cameraOffsetY -= config.PAN_SPEED; moved = true; break;
+                case 'a': case 'arrowleft':  cameraOffsetX += config.PAN_SPEED; moved = true; break;
+                case 'd': case 'arrowright': cameraOffsetX -= config.PAN_SPEED; moved = true; break;
+             }
+             if (event.key === '-' || event.key === '_') {
+                zoomLevel = Math.max(config.MIN_ZOOM, zoomLevel / (1 + config.ZOOM_INCREMENT)); zoomed = true;
+            } else if (event.key === '=' || event.key === '+') {
+                zoomLevel = Math.min(config.MAX_ZOOM, zoomLevel * (1 + config.ZOOM_INCREMENT)); zoomed = true;
+            }
+            if (moved) { event.preventDefault(); needsRedraw = true; }
+            if (zoomed) {
+                event.preventDefault();
+                // Basic zoom centering (relative to current view)
+                console.log(`Zoom level: ${zoomLevel.toFixed(2)}`);
+                needsRedraw = true;
+                 // TODO: Implement precise zoom centering if needed later
+            }
+        }
+
+        /** Handles window resize */
+        // (Code unchanged)
+        function handleResize() { /* ... updates canvas size, origin ... */
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            originX = canvas.width / 2;
+            originY = Math.max(config.TILE_HEIGHT * 2, canvas.height * 0.15);
+            console.log(`Resized canvas to ${canvas.width}x${canvas.height}. Origin: (${originX}, ${originY})`);
+            needsRedraw = true;
+        }
+
+        // --- Main Loop (gameLoop) ---
+        // (Code unchanged)
+        function gameLoop() { if (needsRedraw) { drawMap(); } requestAnimationFrame(gameLoop); }
+
+        // --- Main Execution (main) ---
+        // (Code unchanged)
+        function main() {
+            handleResize(); initMap();
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('click', handleClick); // Now only handles left click
+            canvas.addEventListener('contextmenu', handleContextMenu); // Handles right click logic + prevents menu
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('resize', handleResize);
+            requestAnimationFrame(gameLoop);
+            console.log("Isometric Terrain V4 Initialized.");
+        }
+        document.addEventListener('DOMContentLoaded', main);
+
+    </script>
+</body>
+</html>

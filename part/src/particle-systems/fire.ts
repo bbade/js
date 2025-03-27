@@ -1,5 +1,5 @@
 import { SystemConfig, ParticleSystem } from '../interfaces';
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Color, scaleBrightness } from "../Color";
 import { Particle } from "./Particle";
 import { randomRange } from '../math/math';

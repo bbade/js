@@ -1,5 +1,5 @@
 import { Color } from "../Color";
-import { Rect } from "../math/Rect";
+import { Rect } from "../math/geometry/Rect";
 import { Damper, Spring } from "../math/Spring";
 import { add, divS, mult, scale, vdistance, Vec2 } from "../math/vec2";
 import { ParticleSystem } from "./interfaces";
