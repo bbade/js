@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Isometric Terrain Canvas V12 - Steeper Slopes</title> <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background-color: #333; }
-        canvas { display: block; background-color: #555; }
+    <title>Isometric Terrain Canvas</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrollbars */
+            height: 100%;
+            background-color: #333; /* Background outside canvas */
+        }
+        canvas {
+            display: block;
+            background-color: #555; /* Canvas background */
+        }
     </style>
 </head>
 <body>
@@ -13,89 +23,205 @@
 
     <script>
         // --- Configuration ---
-        // (Unchanged)
         const config = {
-            MAP_WIDTH: 32, MAP_HEIGHT: 32, TILE_WIDTH_HALF: 32, TILE_HEIGHT_HALF: 16,
-            ELEVATION_UNIT_HEIGHT: 8, PAN_SPEED: 40, MIN_ZOOM: 0.25, MAX_ZOOM: 4.0,
-            ZOOM_INCREMENT: 0.1,
-            COLORS: { grass1: '#6A994E', grass2: '#A7C957', sideFactor: 0.7, hoverHighlightFactor: 1.2, LIGHT_HIGHLIGHT_FACTOR: 1.25, LIGHT_NEUTRAL_FACTOR: 1.0, LIGHT_SHADOW_FACTOR: 0.75, stroke: '#333333', background: '#555555' },
+            MAP_WIDTH: 32,
+            MAP_HEIGHT: 32,
+            TILE_WIDTH_HALF: 32,  // Half the isometric width of a tile base
+            TILE_HEIGHT_HALF: 16, // Half the isometric height of a tile base
+            ELEVATION_UNIT_HEIGHT: 8, // Screen pixels per elevation unit
+            PAN_SPEED: 40,        // Screen pixels per key press pan
+            MIN_ZOOM: 0.25,
+            MAX_ZOOM: 4.0,
+            ZOOM_INCREMENT: 0.1,  // Multiplier for zoom step
+
+            COLORS: {
+                grass1: '#6A994E', // Base color 1
+                grass2: '#A7C957', // Base color 2
+                sideFactor: 0.7,   // Darkening factor for side faces
+                hoverHighlightFactor: 1.2, // Brightness factor for hovered tile
+                LIGHT_HIGHLIGHT_FACTOR: 1.25, // Brightness factor for lit faces
+                LIGHT_NEUTRAL_FACTOR: 1.0,   // Factor for neutrally lit faces
+                LIGHT_SHADOW_FACTOR: 0.75,  // Factor for shadowed faces
+                stroke: '#333333',          // Tile outline color
+                background: '#555555'       // Canvas background color
+            },
         };
+
         // --- Calculated Config ---
-        // (Unchanged)
-        config.TILE_WIDTH = config.TILE_WIDTH_HALF * 2; config.TILE_HEIGHT = config.TILE_HEIGHT_HALF * 2;
+        config.TILE_WIDTH = config.TILE_WIDTH_HALF * 2;
+        config.TILE_HEIGHT = config.TILE_HEIGHT_HALF * 2;
+        // Pre-calculate dark base colors for sides
         config.COLORS.grass1_dark = adjustColorBrightness(config.COLORS.grass1, config.COLORS.sideFactor);
         config.COLORS.grass2_dark = adjustColorBrightness(config.COLORS.grass2, config.COLORS.sideFactor);
 
         // --- Global State ---
-        // (Unchanged)
-        const canvas = document.getElementById('isoCanvas'); const ctx = canvas.getContext('2d');
-        let mapData = []; let cameraOffsetX = 0, cameraOffsetY = 0, zoomLevel = 1.0;
-        let originX = 0, originY = 0; let currentHoveredTile = null, needsRedraw = true;
-        let lightingDirection = 4; // Light from South-East
+        const canvas = document.getElementById('isoCanvas');
+        const ctx = canvas.getContext('2d');
 
-        // --- Helper Functions (getScaled..., adjustColorBrightness) ---
-        // (Unchanged)
-        function getScaledTileWidthHalf() { return config.TILE_WIDTH_HALF * zoomLevel; }
-        function getScaledTileHeightHalf() { return config.TILE_HEIGHT_HALF * zoomLevel; }
-        function getScaledElevationUnitHeight() { return config.ELEVATION_UNIT_HEIGHT * zoomLevel; }
-        function adjustColorBrightness(hex, factor) { /* ... */ if (!hex || hex.length < 7) return '#000000'; let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); r = Math.min(255, Math.max(0, Math.round(r * factor))); g = Math.min(255, Math.max(0, Math.round(g * factor))); b = Math.min(255, Math.max(0, Math.round(b * factor))); return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`; }
+        let mapData = []; // 2D array storing tile objects [{elevation, baseColor, sideColor, isHovered, isCliff}, ...]
+        let cameraOffsetX = 0; // Camera horizontal offset in screen pixels
+        let cameraOffsetY = 0; // Camera vertical offset in screen pixels
+        let zoomLevel = 1.0;   // Current zoom multiplier
 
-        // --- Initialization (initMap) ---
-        // (Unchanged - includes isCliff)
-        function initMap() { /* ... */ console.log("Initializing map..."); mapData = []; for (let y = 0; y < config.MAP_HEIGHT; y++) { const row = []; for (let x = 0; x < config.MAP_WIDTH; x++) { const isEven = (x + y) % 2 === 0; const baseColor = isEven ? config.COLORS.grass1 : config.COLORS.grass2; const sideColor = isEven ? config.COLORS.grass1_dark : config.COLORS.grass2_dark; row.push({ elevation: 0, baseColor: baseColor, sideColor: sideColor, isHovered: false, isCliff: false }); } mapData.push(row); } console.log(`Map initialized (${config.MAP_WIDTH}x${config.MAP_HEIGHT})`); }
+        let originX = 0; // Screen X coordinate for map origin (0,0) before camera offset
+        let originY = 0; // Screen Y coordinate for map origin (0,0) before camera offset
 
-        // --- Coordinate Transformations (worldToScreen, screenToWorld) ---
-        // (Unchanged)
-        function worldToScreen(worldX, worldY, elevation) { /* ... */ const scaledWidthHalf = getScaledTileWidthHalf(); const scaledHeightHalf = getScaledTileHeightHalf(); const scaledElevationHeight = getScaledElevationUnitHeight(); const screenX = originX + (worldX - worldY) * scaledWidthHalf + cameraOffsetX; const screenY = originY + (worldX + worldY) * scaledHeightHalf - elevation * scaledElevationHeight + cameraOffsetY; return { screenX, screenY }; }
-        function screenToWorld(screenX, screenY) { /* ... */ const scaledWidthHalf = getScaledTileWidthHalf(); const scaledHeightHalf = getScaledTileHeightHalf(); const adjScreenX = screenX - originX - cameraOffsetX; const adjScreenY = screenY - originY - cameraOffsetY; const isoX = adjScreenX / scaledWidthHalf; const isoY = adjScreenY / scaledHeightHalf; const worldX = Math.floor((isoX + isoY) / 2); const worldY = Math.floor((isoY - isoX) / 2); return { worldX, worldY }; }
+        let currentHoveredTile = null; // { x: worldX, y: worldY } or null
+        let needsRedraw = true;        // Flag to trigger redraw in the next animation frame
+
+        // Lighting Direction: 1=N, 2=NE, 3=E, 4=SE, 5=S, 6=SW, 7=W, 8=NW
+        let lightingDirection = 4; // Default: South-East
+
+        // --- Helper Functions ---
+
+        function getScaledTileWidthHalf() {
+            return config.TILE_WIDTH_HALF * zoomLevel;
+        }
+
+        function getScaledTileHeightHalf() {
+            return config.TILE_HEIGHT_HALF * zoomLevel;
+        }
+
+        function getScaledElevationUnitHeight() {
+            return config.ELEVATION_UNIT_HEIGHT * zoomLevel;
+        }
+
+        /**
+         * Brightens or darkens a hex color by a given factor.
+         * @param {string} hex - The hex color string (e.g., '#RRGGBB').
+         * @param {number} factor - Multiplier for brightness (e.g., 1.2 = 20% brighter, 0.8 = 20% darker).
+         * @returns {string} The adjusted hex color string.
+         */
+        function adjustColorBrightness(hex, factor) {
+            if (!hex || hex.length < 7) return '#000000'; // Basic validation
+
+            let r = parseInt(hex.slice(1, 3), 16);
+            let g = parseInt(hex.slice(3, 5), 16);
+            let b = parseInt(hex.slice(5, 7), 16);
+
+            // Apply factor and clamp to 0-255 range
+            r = Math.min(255, Math.max(0, Math.round(r * factor)));
+            g = Math.min(255, Math.max(0, Math.round(g * factor)));
+            b = Math.min(255, Math.max(0, Math.round(b * factor)));
+
+            // Convert back to hex with padding
+            const rHex = r.toString(16).padStart(2, '0');
+            const gHex = g.toString(16).padStart(2, '0');
+            const bHex = b.toString(16).padStart(2, '0');
+
+            return `#${rHex}${gHex}${bHex}`;
+        }
+
+        // --- Initialization ---
+
+        function initMap() {
+            mapData = [];
+            for (let y = 0; y < config.MAP_HEIGHT; y++) {
+                const row = [];
+                for (let x = 0; x < config.MAP_WIDTH; x++) {
+                    const isEven = (x + y) % 2 === 0;
+                    const baseColor = isEven ? config.COLORS.grass1 : config.COLORS.grass2;
+                    const sideColor = isEven ? config.COLORS.grass1_dark : config.COLORS.grass2_dark;
+                    row.push({
+                        elevation: 0,
+                        baseColor: baseColor,
+                        sideColor: sideColor,
+                        isHovered: false,
+                        isCliff: false
+                    });
+                }
+                mapData.push(row);
+            }
+            console.log(`Map initialized (${config.MAP_WIDTH}x${config.MAP_HEIGHT})`);
+        }
+
+        // --- Coordinate Transformations ---
+
+        /**
+         * Converts World coordinates (tile indices) and elevation to Screen coordinates (pixels),
+         * applying zoom and camera offset. Returns the top-center point of the tile.
+         */
+        function worldToScreen(worldX, worldY, elevation) {
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+            const scaledElevationHeight = getScaledElevationUnitHeight();
+
+            const screenX = originX + (worldX - worldY) * scaledWidthHalf + cameraOffsetX;
+            const screenY = originY + (worldX + worldY) * scaledHeightHalf - elevation * scaledElevationHeight + cameraOffsetY;
+
+            return { screenX, screenY };
+        }
+
+        /**
+         * Converts Screen coordinates (pixels) back to approximate World coordinates (tile indices),
+         * accounting for camera offset and zoom. Used for mouse picking.
+         */
+        function screenToWorld(screenX, screenY) {
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+
+            // Adjust for camera and origin
+            const adjScreenX = screenX - originX - cameraOffsetX;
+            const adjScreenY = screenY - originY - cameraOffsetY;
+
+            // Inverse isometric projection (scaling applied first)
+            const isoX = adjScreenX / scaledWidthHalf;
+            const isoY = adjScreenY / scaledHeightHalf;
+
+            // Convert cartesian isometric coordinates back to world grid coordinates
+            const worldX = Math.floor((isoX + isoY) / 2);
+            const worldY = Math.floor((isoY - isoX) / 2);
+
+            return { worldX, worldY };
+        }
 
         // --- Slope & Lighting Calculations ---
 
         /**
-         * Calculates corner elevation adjustments based on neighbors.
-         * Now considers elevation differences of 1 or 2.
-         * Returns the amount of adjustment needed (0, 1, or 2).
+         * Calculates corner elevation adjustments (0, 1, or 2 units) based on neighbors.
+         * Considers elevation differences of 1 or 2 for cardinal and diagonal neighbors.
          */
-        // **** MODIFIED - Check for deltaElevation 1 or 2 ****
         function calculateSlopeAdjustments(worldX, worldY) {
             const currentTile = mapData[worldY]?.[worldX];
-            if (!currentTile) return { top: 0, right: 0, bottom: 0, left: 0 };
+            if (!currentTile) return { top: 0, right: 0, bottom: 0, left: 0 }; // Safety check
+
             const currentElevation = currentTile.elevation;
 
+            // Get neighbors (includes bounds checking via optional chaining)
             const N = mapData[worldY - 1]?.[worldX]; const S = mapData[worldY + 1]?.[worldX];
             const E = mapData[worldY]?.[worldX + 1]; const W = mapData[worldY]?.[worldX - 1];
             const NE = mapData[worldY - 1]?.[worldX + 1]; const SE = mapData[worldY + 1]?.[worldX + 1];
             const SW = mapData[worldY + 1]?.[worldX - 1]; const NW = mapData[worldY - 1]?.[worldX - 1];
 
             let adjustments = { top: 0, right: 0, bottom: 0, left: 0 };
-            let delta = 0;
+            let delta = 0; // Stores elevation difference
 
             // --- Cardinal Influence (raises 2 corners) ---
             if (N) {
                 delta = N.elevation - currentElevation;
                 if (delta === 1 || delta === 2) {
                     adjustments.top = Math.max(adjustments.top, delta);
-                    adjustments.right = Math.max(adjustments.right, delta);
+                    adjustments.right = Math.max(adjustments.right, delta); // N influences Top, Right
                 }
             }
             if (E) {
                 delta = E.elevation - currentElevation;
                 if (delta === 1 || delta === 2) {
-                    adjustments.bottom = Math.max(adjustments.bottom, delta);
+                    adjustments.bottom = Math.max(adjustments.bottom, delta); // E influences Bottom, Right
                     adjustments.right = Math.max(adjustments.right, delta);
                 }
             }
              if (S) {
                 delta = S.elevation - currentElevation;
                  if (delta === 1 || delta === 2) {
-                    adjustments.bottom = Math.max(adjustments.bottom, delta);
+                    adjustments.bottom = Math.max(adjustments.bottom, delta); // S influences Bottom, Left
                     adjustments.left = Math.max(adjustments.left, delta);
                 }
             }
             if (W) {
                 delta = W.elevation - currentElevation;
                 if (delta === 1 || delta === 2) {
-                    adjustments.top = Math.max(adjustments.top, delta);
+                    adjustments.top = Math.max(adjustments.top, delta); // W influences Top, Left
                     adjustments.left = Math.max(adjustments.left, delta);
                 }
             }
@@ -103,37 +229,51 @@
             // --- Diagonal Influence (raises 1 corner) ---
              if (NW) {
                  delta = NW.elevation - currentElevation;
-                 if (delta === 1 || delta === 2) { adjustments.top = Math.max(adjustments.top, delta); }
+                 if (delta === 1 || delta === 2) { adjustments.top = Math.max(adjustments.top, delta); } // NW -> Top
             }
             if (NE) {
                  delta = NE.elevation - currentElevation;
-                 if (delta === 1 || delta === 2) { adjustments.right = Math.max(adjustments.right, delta); }
+                 if (delta === 1 || delta === 2) { adjustments.right = Math.max(adjustments.right, delta); } // NE -> Right
             }
             if (SE) {
                  delta = SE.elevation - currentElevation;
-                 if (delta === 1 || delta === 2) { adjustments.bottom = Math.max(adjustments.bottom, delta); }
+                 if (delta === 1 || delta === 2) { adjustments.bottom = Math.max(adjustments.bottom, delta); } // SE -> Bottom
             }
              if (SW) {
                  delta = SW.elevation - currentElevation;
-                 if (delta === 1 || delta === 2) { adjustments.left = Math.max(adjustments.left, delta); }
+                 if (delta === 1 || delta === 2) { adjustments.left = Math.max(adjustments.left, delta); } // SW -> Left
              }
 
             return adjustments;
         }
-        // **** END MODIFICATION ****
-
-
-        // getSideFaceColors (Unchanged)
-        function getSideFaceColors(baseSideColor, lightDir) { let rightFaceColor = baseSideColor; let leftFaceColor = baseSideColor; const highlightFactor = config.COLORS.LIGHT_HIGHLIGHT_FACTOR; if ([3, 4, 5].includes(lightDir)) { rightFaceColor = adjustColorBrightness(baseSideColor, highlightFactor); } if ([5, 6, 7].includes(lightDir)) { leftFaceColor = adjustColorBrightness(baseSideColor, highlightFactor); } return { right: rightFaceColor, left: leftFaceColor }; }
-
 
         /**
-         * Determines the approximate direction (1-8) the top slope is facing.
-         * Returns 0 if flat or complex slope.
+         * Determines colors for side faces based on lighting direction.
          */
-        // **** MODIFIED - Normalize adjustments for direction finding ****
+        function getSideFaceColors(baseSideColor, lightDir) {
+            let rightFaceColor = baseSideColor;
+            let leftFaceColor = baseSideColor;
+            const highlightFactor = config.COLORS.LIGHT_HIGHLIGHT_FACTOR;
+
+            // Right face visually faces South-East (SE)
+            if ([3, 4, 5].includes(lightDir)) { // Lit by E, SE, S
+                rightFaceColor = adjustColorBrightness(baseSideColor, highlightFactor);
+            }
+
+            // Left face visually faces South-West (SW)
+            if ([5, 6, 7].includes(lightDir)) { // Lit by S, SW, W
+                leftFaceColor = adjustColorBrightness(baseSideColor, highlightFactor);
+            }
+
+            return { right: rightFaceColor, left: leftFaceColor };
+        }
+
+        /**
+         * Determines the approximate direction (1-8) the top slope faces, or 0 if flat/complex.
+         * Used for top surface lighting.
+         */
         function getSlopeFacingDirection(adj) {
-            // Normalize adjustments (treat 1 and 2 as simply "raised") for direction finding
+            // Normalize: check only *if* a corner is raised (value > 0), not by how much
             const normTop = adj.top > 0 ? 1 : 0;
             const normRight = adj.right > 0 ? 1 : 0;
             const normBottom = adj.bottom > 0 ? 1 : 0;
@@ -154,33 +294,308 @@
                 if (normTop && normRight) return 5;  // Raised N -> Faces S (5)
                 if (normBottom && normRight) return 7; // Raised E -> Faces W (7)
                 if (normBottom && normLeft) return 1;  // Raised S -> Faces N (1)
-                // Ignore opposite corners for now
+                // Ignore opposite corners (top/bottom or left/right) for now
             }
-            // Complex slope
+
+            // Complex slope (3+ corners, or 2 opposite)
             return 0;
         }
-        // **** END MODIFICATION ****
 
-        // getSlopeBrightnessFactor (Unchanged)
-        function getSlopeBrightnessFactor(facingDir, lightDir) { if (facingDir === 0) { return config.COLORS.LIGHT_NEUTRAL_FACTOR; } let diff = Math.abs(facingDir - lightDir); if (diff > 4) diff = 8 - diff; switch (diff) { case 0: case 1: return config.COLORS.LIGHT_HIGHLIGHT_FACTOR; case 2: return config.COLORS.LIGHT_NEUTRAL_FACTOR; case 3: case 4: return config.COLORS.LIGHT_SHADOW_FACTOR; default: return config.COLORS.LIGHT_NEUTRAL_FACTOR; } }
+        /**
+         * Calculates the brightness factor for a slope's top surface based on its facing direction
+         * and the light direction.
+         */
+        function getSlopeBrightnessFactor(facingDir, lightDir) {
+            if (facingDir === 0) { // Flat or complex slope
+                return config.COLORS.LIGHT_NEUTRAL_FACTOR;
+            }
 
+            // Calculate angular difference in 8 directions (0-4 range)
+            let diff = Math.abs(facingDir - lightDir);
+            if (diff > 4) diff = 8 - diff; // Handle wrap-around
 
-        // --- Drawing (drawTile, drawMap) ---
-        // (Unchanged from V11 - already uses numeric adjustments)
-        function drawTile(worldX, worldY, tileData) { const { elevation, baseColor, sideColor, isHovered, isCliff } = tileData; const slopeAdjustments = calculateSlopeAdjustments(worldX, worldY); const finalAdjustments = isCliff ? { top: 0, right: 0, bottom: 0, left: 0 } : slopeAdjustments; const scaledWidthHalf = getScaledTileWidthHalf(); const scaledHeightHalf = getScaledTileHeightHalf(); const scaledTileHeight = scaledHeightHalf * 2; const scaledElevationUnitHeight = getScaledElevationUnitHeight(); const baseScreenPos = worldToScreen(worldX, worldY, elevation); const targetTopY = baseScreenPos.screenY - finalAdjustments.top * scaledElevationUnitHeight; const targetRightY = baseScreenPos.screenY + scaledHeightHalf - finalAdjustments.right * scaledElevationUnitHeight; const targetBottomY = baseScreenPos.screenY + scaledTileHeight - finalAdjustments.bottom * scaledElevationUnitHeight; const targetLeftY = baseScreenPos.screenY + scaledHeightHalf - finalAdjustments.left * scaledElevationUnitHeight; const topX = baseScreenPos.screenX; const rightX = baseScreenPos.screenX + scaledWidthHalf; const bottomX = baseScreenPos.screenX; const leftX = baseScreenPos.screenX - scaledWidthHalf; const groundScreenPos = worldToScreen(worldX, worldY, 0); const groundTopY = groundScreenPos.screenY; const groundRightY = groundScreenPos.screenY + scaledHeightHalf; const groundBottomY = groundScreenPos.screenY + scaledTileHeight; const groundLeftY = groundScreenPos.screenY + scaledHeightHalf; const faceColors = getSideFaceColors(sideColor, lightingDirection); ctx.strokeStyle = config.COLORS.stroke; ctx.lineWidth = Math.max(0.5, 0.5 * zoomLevel); if (targetRightY < groundRightY || targetBottomY < groundBottomY) { ctx.fillStyle = faceColors.right; ctx.beginPath(); ctx.moveTo(rightX, targetRightY); ctx.lineTo(bottomX, targetBottomY); ctx.lineTo(bottomX, groundBottomY); ctx.lineTo(rightX, groundRightY); ctx.closePath(); ctx.fill(); ctx.stroke(); } if (targetLeftY < groundLeftY || targetBottomY < groundBottomY) { ctx.fillStyle = faceColors.left; ctx.beginPath(); ctx.moveTo(leftX, targetLeftY); ctx.lineTo(bottomX, targetBottomY); ctx.lineTo(bottomX, groundBottomY); ctx.lineTo(leftX, groundLeftY); ctx.closePath(); ctx.fill(); ctx.stroke(); } const facingDir = getSlopeFacingDirection(finalAdjustments); const brightnessFactor = getSlopeBrightnessFactor(facingDir, lightingDirection); let finalTopColor = adjustColorBrightness(baseColor, brightnessFactor); if (isHovered) { finalTopColor = adjustColorBrightness(finalTopColor, config.COLORS.hoverHighlightFactor); } ctx.beginPath(); ctx.moveTo(topX, targetTopY); ctx.lineTo(rightX, targetRightY); ctx.lineTo(bottomX, targetBottomY); ctx.lineTo(leftX, targetLeftY); ctx.closePath(); ctx.fillStyle = finalTopColor; ctx.strokeStyle = config.COLORS.stroke; ctx.lineWidth = Math.max(0.5, 1 * zoomLevel); ctx.fill(); ctx.stroke(); }
-        function drawMap() { /* ... */ ctx.fillStyle = config.COLORS.background; ctx.fillRect(0, 0, canvas.width, canvas.height); for (let y = 0; y < config.MAP_HEIGHT; y++) { for (let x = 0; x < config.MAP_WIDTH; x++) { if (mapData[y]?.[x]) { drawTile(x, y, mapData[y][x]); } } } needsRedraw = false; }
+            switch (diff) {
+                case 0: // ~0 deg
+                case 1: // ~45 deg
+                    return config.COLORS.LIGHT_HIGHLIGHT_FACTOR;
+                case 2: // ~90 deg
+                    return config.COLORS.LIGHT_NEUTRAL_FACTOR;
+                case 3: // ~135 deg
+                case 4: // ~180 deg
+                    return config.COLORS.LIGHT_SHADOW_FACTOR;
+                default:
+                    return config.COLORS.LIGHT_NEUTRAL_FACTOR;
+            }
+        }
+
+        // --- Drawing ---
+
+        /**
+         * Draws a single isometric tile, including sides, slopes, cliffs, and lighting.
+         */
+        function drawTile(worldX, worldY, tileData) {
+            const { elevation, baseColor, sideColor, isHovered, isCliff } = tileData;
+
+            // Determine slope adjustments, overridden by cliff status
+            const slopeAdjustments = calculateSlopeAdjustments(worldX, worldY);
+            const finalAdjustments = isCliff ? { top: 0, right: 0, bottom: 0, left: 0 } : slopeAdjustments;
+
+            // Get scaled dimensions
+            const scaledWidthHalf = getScaledTileWidthHalf();
+            const scaledHeightHalf = getScaledTileHeightHalf();
+            const scaledTileHeight = scaledHeightHalf * 2;
+            const scaledElevationUnitHeight = getScaledElevationUnitHeight();
+
+            // Calculate screen positions
+            const baseScreenPos = worldToScreen(worldX, worldY, elevation); // Position at tile's elevation
+            const groundScreenPos = worldToScreen(worldX, worldY, 0);       // Position at elevation 0
+
+            // Calculate target Y coords for rendered surface corners (includes slope/cliff)
+            const targetTopY = baseScreenPos.screenY - finalAdjustments.top * scaledElevationUnitHeight;
+            const targetRightY = baseScreenPos.screenY + scaledHeightHalf - finalAdjustments.right * scaledElevationUnitHeight;
+            const targetBottomY = baseScreenPos.screenY + scaledTileHeight - finalAdjustments.bottom * scaledElevationUnitHeight;
+            const targetLeftY = baseScreenPos.screenY + scaledHeightHalf - finalAdjustments.left * scaledElevationUnitHeight;
+
+            // Calculate X coords (relative to base screen pos)
+            const topX = baseScreenPos.screenX;
+            const rightX = baseScreenPos.screenX + scaledWidthHalf;
+            const bottomX = baseScreenPos.screenX;
+            const leftX = baseScreenPos.screenX - scaledWidthHalf;
+
+            // Calculate ground Y coords (at elevation 0)
+            const groundTopY = groundScreenPos.screenY;
+            const groundRightY = groundScreenPos.screenY + scaledHeightHalf;
+            const groundBottomY = groundScreenPos.screenY + scaledTileHeight;
+            const groundLeftY = groundScreenPos.screenY + scaledHeightHalf;
+
+            // Determine side face colors based on lighting
+            const faceColors = getSideFaceColors(sideColor, lightingDirection);
+
+            // --- Draw Side Faces ---
+            ctx.strokeStyle = config.COLORS.stroke;
+            ctx.lineWidth = Math.max(0.5, 0.5 * zoomLevel);
+
+            // Right Side (Draw if rendered surface is higher than ground)
+            if (targetRightY < groundRightY || targetBottomY < groundBottomY) {
+                 ctx.fillStyle = faceColors.right;
+                 ctx.beginPath();
+                 ctx.moveTo(rightX, targetRightY);
+                 ctx.lineTo(bottomX, targetBottomY);
+                 ctx.lineTo(bottomX, groundBottomY);
+                 ctx.lineTo(rightX, groundRightY);
+                 ctx.closePath();
+                 ctx.fill();
+                 ctx.stroke();
+            }
+            // Left Side (Draw if rendered surface is higher than ground)
+            if (targetLeftY < groundLeftY || targetBottomY < groundBottomY) {
+                 ctx.fillStyle = faceColors.left;
+                 ctx.beginPath();
+                 ctx.moveTo(leftX, targetLeftY);
+                 ctx.lineTo(bottomX, targetBottomY);
+                 ctx.lineTo(bottomX, groundBottomY);
+                 ctx.lineTo(leftX, groundLeftY);
+                 ctx.closePath();
+                 ctx.fill();
+                 ctx.stroke();
+            }
+
+            // --- Calculate Top Surface Color (Lighting + Hover) ---
+            const facingDir = getSlopeFacingDirection(finalAdjustments);
+            const brightnessFactor = getSlopeBrightnessFactor(facingDir, lightingDirection);
+            let finalTopColor = adjustColorBrightness(baseColor, brightnessFactor);
+            if (isHovered) {
+                 finalTopColor = adjustColorBrightness(finalTopColor, config.COLORS.hoverHighlightFactor);
+            }
+
+            // --- Draw Top Surface ---
+            ctx.beginPath();
+            ctx.moveTo(topX, targetTopY);
+            ctx.lineTo(rightX, targetRightY);
+            ctx.lineTo(bottomX, targetBottomY);
+            ctx.lineTo(leftX, targetLeftY);
+            ctx.closePath();
+            ctx.fillStyle = finalTopColor;
+            ctx.strokeStyle = config.COLORS.stroke;
+            ctx.lineWidth = Math.max(0.5, 1 * zoomLevel);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        /** Clears canvas and redraws all visible tiles */
+        function drawMap() {
+            ctx.fillStyle = config.COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Basic draw order: row by row, column by column
+            for (let y = 0; y < config.MAP_HEIGHT; y++) {
+                for (let x = 0; x < config.MAP_WIDTH; x++) {
+                    // Future optimization: Add culling here
+                    if (mapData[y]?.[x]) {
+                        drawTile(x, y, mapData[y][x]);
+                    }
+                }
+            }
+            needsRedraw = false; // Reset flag after drawing
+        }
 
         // --- Event Handling ---
-        // (Unchanged: handleMouseMove, handleClick, handleContextMenu, handleKeyDown, handleResize)
-        function handleMouseMove(event) { /* ... */ const rect = canvas.getBoundingClientRect(); const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top; const { worldX, worldY } = screenToWorld(mouseX, mouseY); let tileChanged = false; let newHoveredTile = null; if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) { newHoveredTile = { x: worldX, y: worldY }; } if (!currentHoveredTile && newHoveredTile || currentHoveredTile && !newHoveredTile || currentHoveredTile && newHoveredTile && (currentHoveredTile.x !== newHoveredTile.x || currentHoveredTile.y !== newHoveredTile.y)) { tileChanged = true; } if (tileChanged) { if (currentHoveredTile && mapData[currentHoveredTile.y]?.[currentHoveredTile.x]) { mapData[currentHoveredTile.y][currentHoveredTile.x].isHovered = false; } if (newHoveredTile && mapData[newHoveredTile.y]?.[newHoveredTile.x]) { mapData[newHoveredTile.y][newHoveredTile.x].isHovered = true; } currentHoveredTile = newHoveredTile; needsRedraw = true; } }
-        function handleClick(event) { /* ... */ if (event.button !== 0) { return; } event.preventDefault(); const rect = canvas.getBoundingClientRect(); const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top; const { worldX, worldY } = screenToWorld(mouseX, mouseY); if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) { const tile = mapData[worldY][worldX]; tile.elevation += 1; console.log(`Raised tile (${worldX}, ${worldY}) to elevation ${tile.elevation}`); needsRedraw = true; } }
-        function handleContextMenu(event) { /* ... */ event.preventDefault(); const rect = canvas.getBoundingClientRect(); const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top; const { worldX, worldY } = screenToWorld(mouseX, mouseY); if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) { const tile = mapData[worldY][worldX]; let changed = false; if (tile.elevation > 0) { tile.elevation -= 1; console.log(`Lowered tile (${worldX}, ${worldY}) via ContextMenu to elevation ${tile.elevation}`); changed = true; } if (changed) { needsRedraw = true; } } }
-        function handleKeyDown(event) { /* ... includes 'c' key ... */ let moved = false; let zoomed = false; let toggledCliff = false; switch(event.key.toLowerCase()) { case 'w': case 'arrowup': cameraOffsetY += config.PAN_SPEED; moved = true; break; case 's': case 'arrowdown': cameraOffsetY -= config.PAN_SPEED; moved = true; break; case 'a': case 'arrowleft': cameraOffsetX += config.PAN_SPEED; moved = true; break; case 'd': case 'arrowright': cameraOffsetX -= config.PAN_SPEED; moved = true; break; case '-': case '_': zoomLevel = Math.max(config.MIN_ZOOM, zoomLevel / (1 + config.ZOOM_INCREMENT)); zoomed = true; break; case '=': case '+': zoomLevel = Math.min(config.MAX_ZOOM, zoomLevel * (1 + config.ZOOM_INCREMENT)); zoomed = true; break; case 'c': if (currentHoveredTile) { const tile = mapData[currentHoveredTile.y]?.[currentHoveredTile.x]; if (tile) { tile.isCliff = !tile.isCliff; console.log(`Tile (${currentHoveredTile.x}, ${currentHoveredTile.y}) isCliff toggled to: ${tile.isCliff}`); toggledCliff = true; } } break; } if (moved || zoomed || toggledCliff) { event.preventDefault(); needsRedraw = true; } }
-        function handleResize() { /* ... */ canvas.width = window.innerWidth; canvas.height = window.innerHeight; originX = canvas.width / 2; originY = Math.max(config.TILE_HEIGHT * 2, canvas.height * 0.15); needsRedraw = true; }
 
-        // --- Main Loop (gameLoop) & Main Execution (main) ---
-        function gameLoop() { if (needsRedraw) { drawMap(); } requestAnimationFrame(gameLoop); }
-        function main() { /* ... */ handleResize(); initMap(); canvas.addEventListener('mousemove', handleMouseMove); canvas.addEventListener('click', handleClick); canvas.addEventListener('contextmenu', handleContextMenu); window.addEventListener('keydown', handleKeyDown); window.addEventListener('resize', handleResize); requestAnimationFrame(gameLoop); console.log("Isometric Terrain V12 Initialized."); }
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+
+            let tileChanged = false;
+            let newHoveredTile = null;
+
+            // Check if calculated coords are within map bounds
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                newHoveredTile = { x: worldX, y: worldY };
+            }
+
+            // Determine if hover state changed
+            if (!currentHoveredTile && newHoveredTile ||
+                currentHoveredTile && !newHoveredTile ||
+                currentHoveredTile && newHoveredTile && (currentHoveredTile.x !== newHoveredTile.x || currentHoveredTile.y !== newHoveredTile.y))
+            {
+                tileChanged = true;
+            }
+
+            // Update map data and flag redraw if state changed
+            if (tileChanged) {
+                 if (currentHoveredTile && mapData[currentHoveredTile.y]?.[currentHoveredTile.x]) {
+                    mapData[currentHoveredTile.y][currentHoveredTile.x].isHovered = false;
+                 }
+                 if (newHoveredTile && mapData[newHoveredTile.y]?.[newHoveredTile.x]) {
+                     mapData[newHoveredTile.y][newHoveredTile.x].isHovered = true;
+                 }
+                 currentHoveredTile = newHoveredTile;
+                 needsRedraw = true;
+            }
+        }
+
+        function handleClick(event) { // Handles Left Click (Raise Elevation)
+            if (event.button !== 0) return; // Ignore non-left clicks
+            event.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                const tile = mapData[worldY][worldX];
+                tile.elevation += 1;
+                console.log(`Raised tile (${worldX}, ${worldY}) to elevation ${tile.elevation}`);
+                needsRedraw = true;
+            }
+        }
+
+        function handleContextMenu(event) { // Handles Right Click (Lower Elevation)
+            event.preventDefault(); // Prevent browser context menu
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            const { worldX, worldY } = screenToWorld(mouseX, mouseY);
+
+            if (worldX >= 0 && worldX < config.MAP_WIDTH && worldY >= 0 && worldY < config.MAP_HEIGHT) {
+                const tile = mapData[worldY][worldX];
+                if (tile.elevation > 0) {
+                    tile.elevation -= 1;
+                    console.log(`Lowered tile (${worldX}, ${worldY}) to elevation ${tile.elevation}`);
+                    needsRedraw = true;
+                }
+            }
+        }
+
+        function handleKeyDown(event) {
+            let moved = false;
+            let zoomed = false;
+            let toggledCliff = false;
+
+            switch(event.key.toLowerCase()) {
+                // Panning
+                case 'w': case 'arrowup':    cameraOffsetY += config.PAN_SPEED; moved = true; break;
+                case 's': case 'arrowdown':  cameraOffsetY -= config.PAN_SPEED; moved = true; break;
+                case 'a': case 'arrowleft':  cameraOffsetX += config.PAN_SPEED; moved = true; break;
+                case 'd': case 'arrowright': cameraOffsetX -= config.PAN_SPEED; moved = true; break;
+
+                // Zooming
+                case '-': case '_':
+                    zoomLevel = Math.max(config.MIN_ZOOM, zoomLevel / (1 + config.ZOOM_INCREMENT)); zoomed = true;
+                    break;
+                case '=': case '+':
+                    zoomLevel = Math.min(config.MAX_ZOOM, zoomLevel * (1 + config.ZOOM_INCREMENT)); zoomed = true;
+                    break;
+
+                // Cliff Toggle
+                case 'c':
+                    if (currentHoveredTile) {
+                        const tile = mapData[currentHoveredTile.y]?.[currentHoveredTile.x];
+                        if (tile) {
+                            tile.isCliff = !tile.isCliff;
+                            console.log(`Tile (${currentHoveredTile.x}, ${currentHoveredTile.y}) isCliff toggled to: ${tile.isCliff}`);
+                            toggledCliff = true;
+                        }
+                    }
+                    break;
+            }
+
+            // Request redraw if any state changed
+            if (moved || zoomed || toggledCliff) {
+                event.preventDefault(); // Prevent default browser action for handled keys
+                needsRedraw = true;
+            }
+        }
+
+        function handleResize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Recalculate origin for centering (relative to screen center)
+            originX = canvas.width / 2;
+            // Place origin somewhat below top edge, adjusted for typical tile height
+            originY = Math.max(config.TILE_HEIGHT * 2, canvas.height * 0.15);
+
+            // console.log(`Resized canvas to ${canvas.width}x${canvas.height}. Origin: (${originX}, ${originY})`);
+            needsRedraw = true;
+        }
+
+        // --- Main Loop ---
+
+        function gameLoop() {
+            // Only redraw if needed
+            if (needsRedraw) {
+                drawMap();
+            }
+            // Continue the loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Main Execution ---
+
+        function main() {
+            handleResize(); // Set initial canvas size and origin
+            initMap();      // Initialize map data
+
+            // Attach event listeners
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('click', handleClick);
+            canvas.addEventListener('contextmenu', handleContextMenu);
+            window.addEventListener('keydown', handleKeyDown); // Use window for key events
+            window.addEventListener('resize', handleResize);   // Use window for resize
+
+            // Start the rendering loop
+            requestAnimationFrame(gameLoop);
+
+            console.log("Isometric Terrain Initialized.");
+        }
+
+        // Run main function after the DOM is loaded
         document.addEventListener('DOMContentLoaded', main);
 
     </script>
