@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Texture Generator</title>
+<meta charset="UTF-8">
+<style>
+  /* Basic styling for better visualization */
+  body { font-family: sans-serif; }
+  .texture-container {
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+   }
+  .texture-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 70px;
+  }
+  .texture-item span {
+      font-size: 0.9em;
+      color: #555;
+      margin-top: 3px;
+      text-align: center;
+   }
+  /* Default canvas display size */
+  canvas {
+    border: 1px solid #ccc;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    width: 64px; /* Display size */
+    height: 64px; /* Display size */
+  }
+  /* Specific display size for the preview canvas (actual internal size 64x48) */
+  canvas.preview {
+      width: 64px;  /* Display width */
+      height: 48px; /* Display height matches internal height */
+      margin-top: 8px; /* (64 - 48) / 2 to vertically align centers */
+  }
+
+
+  button { margin-bottom: 15px; padding: 5px 10px; }
+
+</style>
+<script>
+  // --- Isometric Cube Previewer (REWRITTEN - Attempt 6 - Back to Pixel Plotting Meticulously) ---
+  const IsoCubePreviewer = (function() {
+    const PREVIEW_WIDTH = 64;
+    const PREVIEW_HEIGHT = 48;
+    const ORIGIN_X = 31; // Top vertex X coordinate (Center of 62 width in 64 canvas)
+    const ORIGIN_Y = 0;  // Top vertex Y coordinate
+
+    /**
+     * Creates an isometric preview canvas using careful pixel plotting.
+     * @param {HTMLCanvasElement} sideCanvas - The canvas containing the side texture (32x32).
+     * @param {HTMLCanvasElement} topCanvas - The canvas containing the top texture (32x32).
+     * @returns {HTMLCanvasElement} A new canvas (64x48) showing the isometric cube.
+     */
+    function constructPreview(sideCanvas, topCanvas) {
+        const sideCtx = sideCanvas.getContext('2d', { willReadFrequently: true });
+        const topCtx = topCanvas.getContext('2d', { willReadFrequently: true });
+        const texWidth = sideCanvas.width;   // Should be 32
+        const texHeight = sideCanvas.height; // Should be 32 (height dimension for side texture)
+        const topTexWidth = topCanvas.width; // Should be 32
+        const topTexHeight = topCanvas.height; // Should be 32 (using explicit var for clarity)
+
+
+        const previewCanvas = document.createElement('canvas');
+        previewCanvas.width = PREVIEW_WIDTH;
+        previewCanvas.height = PREVIEW_HEIGHT;
+        previewCanvas.classList.add('preview');
+        const previewCtx = previewCanvas.getContext('2d');
+        // No smoothing needed when plotting pixels directly
+
+        const sideDataArr = sideCtx.getImageData(0, 0, texWidth, texHeight).data;
+        const topDataArr = topCtx.getImageData(0, 0, topTexWidth, topTexHeight).data;
+        const previewImageData = previewCtx.createImageData(PREVIEW_WIDTH, PREVIEW_HEIGHT);
+        const previewData = previewImageData.data;
+
+        // Helper to get color [R, G, B, A] from source ImageData
+        function getPixel(sourceData, tWidth, tHeight, u, v) {
+            u = Math.max(0, Math.min(tWidth - 1, Math.floor(u)));
+            v = Math.max(0, Math.min(tHeight - 1, Math.floor(v)));
+            const index = (v * tWidth + u) * 4;
+            if (sourceData[index + 3] < 10) return null;
+            return [sourceData[index], sourceData[index + 1], sourceData[index + 2], sourceData[index + 3]];
+        }
+
+        // Helper to set color [R, G, B, A] into target ImageData
+        function setPixel(targetData, targetWidth, targetHeight, x, y, color) {
+             x = Math.floor(x);
+             y = Math.floor(y);
+             if (!color || x < 0 || x >= targetWidth || y < 0 || y >= targetHeight) { return; }
+            const index = (y * targetWidth + x) * 4;
+            targetData[index]     = color[0]; targetData[index + 1] = color[1];
+            targetData[index + 2] = color[2]; targetData[index + 3] = color[3];
+        }
+
+        // --- Draw Faces (Order: Right -> Left -> Top) ---
+
+        // Draw Right Side Face: Texture (su, sv) -> Screen (x, y)
+        for (let sv = 0; sv < texHeight; sv++) {
+             for (let su = 0; su < texWidth; su++) {
+                const x = ORIGIN_X + su;
+                const y = ORIGIN_Y + su / 2 + sv;
+                const color = getPixel(sideDataArr, texWidth, texHeight, su, sv);
+                setPixel(previewData, PREVIEW_WIDTH, PREVIEW_HEIGHT, x, y, color);
+             }
+        }
+
+        // Draw Left Side Face: Texture (su, sv) -> Screen (x, y)
+        for (let sv = 0; sv < texHeight; sv++) {
+            for (let su = 0; su < texWidth; su++) {
+                const x = ORIGIN_X - su;
+                const y = ORIGIN_Y + su / 2 + sv;
+                const color = getPixel(sideDataArr, texWidth, texHeight, su, sv);
+                setPixel(previewData, PREVIEW_WIDTH, PREVIEW_HEIGHT, x, y, color);
+            }
+        }
+
+        // Draw Top Face: Texture (tu, tv) -> Screen (x, y)
+        for (let tv = 0; tv < topTexHeight; tv++) {
+            for (let tu = 0; tu < topTexWidth; tu++) {
+                const x = ORIGIN_X + tu - tv;
+                const y = ORIGIN_Y + (tu + tv) / 2;
+                const color = getPixel(topDataArr, topTexWidth, topTexHeight, tu, tv);
+                setPixel(previewData, PREVIEW_WIDTH, PREVIEW_HEIGHT, x, y, color);
+            }
+        }
+
+        previewCtx.putImageData(previewImageData, 0, 0);
+        return previewCanvas;
+    }
+
+    return { constructPreview: constructPreview };
+  })();
+
+
+  // --- Texture Generator Module ---
+  // ... (No changes needed in this module) ...
+  const Textures = (function() {
+    let _textures = null; const CANVAS_SIZE = 32;
+    function Texture(name) {
+      this.name = name;
+      this.topCanvas = document.createElement('canvas'); this.topCanvas.width=CANVAS_SIZE; this.topCanvas.height=CANVAS_SIZE; this.topCtx = this.topCanvas.getContext('2d');
+      this.sideCanvas = document.createElement('canvas'); this.sideCanvas.width=CANVAS_SIZE; this.sideCanvas.height=CANVAS_SIZE; this.sideCtx = this.sideCanvas.getContext('2d');
+      this.topCtx.imageSmoothingEnabled = false; this.sideCtx.imageSmoothingEnabled = false;
+      _drawTexture(this.name, this.topCtx, this.sideCtx);
+      this.previewCanvas = IsoCubePreviewer.constructPreview(this.sideCanvas, this.topCanvas);
+    }
+     function _randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+     function _varyColorComponent(hexComponent, variation) { let val = parseInt(hexComponent, 16); val += _randInt(-variation, variation); val = Math.max(0, Math.min(255, val)); return val.toString(16).padStart(2, '0'); }
+     function _varyHexColor(hexColor, variation = 6) { if (!hexColor || hexColor.length !== 7 || hexColor[0] !== '#') return hexColor; const r = hexColor.substring(1, 3); const g = hexColor.substring(3, 5); const b = hexColor.substring(5, 7); return `#${_varyColorComponent(r, variation)}${_varyColorComponent(g, variation)}${_varyColorComponent(b, variation)}`; }
+     function _drawTexture(name, topCtx, sideCtx) { switch (name.toLowerCase()) { case 'grass': _drawGrass(topCtx, sideCtx); break; case 'water': _drawWater(topCtx, sideCtx); break; case 'stone': _drawStone(topCtx, sideCtx); break; case 'dirt': _drawDirt(topCtx, sideCtx); break; default: console.warn(`Unknown texture type: ${name}`); topCtx.fillStyle = '#FF00FF'; topCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); sideCtx.fillStyle = '#FF00FF'; sideCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); } }
+     function _applyNoisePattern(ctx, baseColor, colorVariation, prob2x2, prob1x1) { for (let y = 0; y < CANVAS_SIZE; y++) { for (let x = 0; x < CANVAS_SIZE; x++) { const rand = Math.random(); const variedColor = _varyHexColor(baseColor, colorVariation); ctx.fillStyle = variedColor; if (rand < prob2x2) { ctx.fillRect(x, y, 2, 2); if (x < CANVAS_SIZE - 1) { x++; } } else if (rand < (prob2x2 + prob1x1)) { ctx.fillRect(x, y, 1, 1); } } } }
+     function _drawGrass(topCtx, sideCtx) { const baseGreen = '#55a630'; const baseBrown = '#7f5539'; const grassHeight = 4; const greenVariation = 8; const brownVariation = 10; topCtx.fillStyle = baseGreen; topCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); _applyNoisePattern(topCtx, baseGreen, greenVariation, 0.08, 0.15); sideCtx.fillStyle = baseGreen; sideCtx.fillRect(0, 0, CANVAS_SIZE, grassHeight); sideCtx.fillStyle = baseBrown; sideCtx.fillRect(0, grassHeight, CANVAS_SIZE, CANVAS_SIZE - grassHeight); for (let y = 0; y < grassHeight; y++) { for (let x = 0; x < CANVAS_SIZE; x++) { const rand = Math.random(); const variedColor = _varyHexColor(baseGreen, greenVariation - 2); sideCtx.fillStyle = variedColor; if (rand < 0.15) { sideCtx.fillRect(x, y, 1, 1); } } } for (let y = grassHeight; y < CANVAS_SIZE; y++) { for (let x = 0; x < CANVAS_SIZE; x++) { const rand = Math.random(); const variedColor = _varyHexColor(baseBrown, brownVariation); sideCtx.fillStyle = variedColor; if (rand < 0.10) { sideCtx.fillRect(x, y, 2, 2); if (x < CANVAS_SIZE - 1) x++; } else if (rand < 0.25) { sideCtx.fillRect(x, y, 1, 1); } } } }
+     function _drawWater(topCtx, sideCtx) { const baseBlue = '#0077cc'; const highlightBlue = '#3399ff'; const blueVariation = 8; [topCtx, sideCtx].forEach(ctx => { ctx.fillStyle = baseBlue; ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); for (let y = 0; y < CANVAS_SIZE; y++) { for (let x = 0; x < CANVAS_SIZE; x++) { const rand = Math.random(); let color = baseBlue; if (rand < 0.06) { color = _varyHexColor(baseBlue, blueVariation); ctx.fillStyle = color; ctx.fillRect(x, y, 2, 2); if (x < CANVAS_SIZE - 1) x++; } else if (rand < 0.20) { color = _varyHexColor(baseBlue, blueVariation); ctx.fillStyle = color; ctx.fillRect(x, y, 1, 1); } else if (rand < 0.25 && (x + y) % 4 < 2) { color = highlightBlue; ctx.fillStyle = color; ctx.fillRect(x, y, 1, 1); } } } }); }
+     function _drawStone(topCtx, sideCtx) { const baseGray = '#808080'; const grayVariation = 12; [topCtx, sideCtx].forEach(ctx => { ctx.fillStyle = baseGray; ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); _applyNoisePattern(ctx, baseGray, grayVariation, 0.12, 0.25); }); }
+     function _drawDirt(topCtx, sideCtx) { const baseBrown = '#7f5539'; const brownVariation = 10; [topCtx, sideCtx].forEach(ctx => { ctx.fillStyle = baseBrown; ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); _applyNoisePattern(ctx, baseBrown, brownVariation, 0.10, 0.20); }); }
+     function _generateAllTextures() { const textureList = []; const textureNames = ['Grass', 'Water', 'Stone', 'Dirt']; textureNames.forEach(name => { textureList.push(new Texture(name)); }); _textures = textureList; return _textures; }
+     return { getTextures: function() { if (_textures === null) { console.log("Generating textures for the first time..."); return _generateAllTextures(); } return _textures; }, regenerateTextures: function() { console.log("Regenerating textures..."); return _generateAllTextures(); } };
+  })();
+
+
+  // --- Temporary Output Function ---
+  // ... (No changes needed in this function) ...
+  function tempOutput() {
+    const outputDiv = document.getElementById('textureOutput');
+    if (!outputDiv) { console.error("Output div not found!"); return; }
+    outputDiv.innerHTML = ''; const textures = Textures.getTextures();
+    textures.forEach(texture => {
+      const container = document.createElement('div'); container.className = 'texture-container';
+      const topWrapper = document.createElement('div'); topWrapper.className = 'texture-item'; const topLabel = document.createElement('span'); topLabel.textContent = `${texture.name}-top`; topWrapper.appendChild(texture.topCanvas); topWrapper.appendChild(topLabel); container.appendChild(topWrapper);
+      const sideWrapper = document.createElement('div'); sideWrapper.className = 'texture-item'; const sideLabel = document.createElement('span'); sideLabel.textContent = `${texture.name}-side`; sideWrapper.appendChild(texture.sideCanvas); sideWrapper.appendChild(sideLabel); container.appendChild(sideWrapper);
+      const previewWrapper = document.createElement('div'); previewWrapper.className = 'texture-item'; const previewLabel = document.createElement('span'); previewLabel.textContent = `${texture.name}-preview`; if (texture.previewCanvas) { previewWrapper.appendChild(texture.previewCanvas); previewWrapper.appendChild(previewLabel); } else { previewLabel.textContent += ' (Error)'; previewWrapper.appendChild(previewLabel); } container.appendChild(previewWrapper);
+      outputDiv.appendChild(container);
+    });
+  }
+
+  // --- Main Execution ---
+  // ... (No changes needed in this block) ...
+  window.addEventListener('DOMContentLoaded', (event) => {
+      console.log('DOM fully loaded and parsed');
+       const buttonContainer = document.getElementById('buttonContainer');
+       if (buttonContainer && !document.getElementById('regenButton')) { const regenButton = document.createElement('button'); regenButton.id = 'regenButton'; regenButton.textContent = 'Regenerate Textures'; regenButton.onclick = () => { Textures.regenerateTextures(); tempOutput(); }; buttonContainer.appendChild(regenButton); }
+      tempOutput();
+  });
+
+</script>
+</head>
+<body>
+
+<h1>Texture Generator Output</h1>
+
+<div id="buttonContainer">
+    </div>
+<div id="textureOutput">
+  </div>
+
+</body>
+</html>

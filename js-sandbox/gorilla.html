@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gorillas JS (Readable OOP)</title>
+    <style>
+        /* CSS remains the same - clean and functional */
+        body { display: flex; flex-direction: column; align-items: center; font-family: 'Courier New', Courier, monospace; background-color: #f0f0f0; margin: 0; }
+        canvas { border: 1px solid black; background-color: #6495ED; margin-top: 10px; outline: none; }
+        .controls { margin-top: 10px; padding: 10px; background-color: #ddd; border: 1px solid #aaa; border-radius: 5px; display: flex; gap: 15px; align-items: center; }
+        .player-info { text-align: center; }
+        label, input, button { font-family: 'Courier New', Courier, monospace; margin: 2px; }
+        input[type=number] { width: 50px; }
+        #message { margin-top: 5px; font-weight: bold; min-height: 1.2em; }
+        #windDisplay { font-weight: bold; }
+        .score { font-size: 1.1em; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Gorillas JS</h1>
+
+    <div>
+        <span id="score1" class="score">P1: 0</span> |
+        <span id="windDisplay">Wind: 0</span> |
+        <span id="score2" class="score">P2: 0</span>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="500" tabindex="-1"></canvas>
+
+    <div id="controls" class="controls">
+        <div id="player1Controls" class="player-info">
+            <span>Player 1</span><br>
+            <label for="angle1">Angle:</label>
+            <input type="number" id="angle1" min="0" max="180" value="45"><br>
+            <label for="velocity1">Velocity:</label>
+            <input type="number" id="velocity1" min="1" max="200" value="30"><br>
+            <button id="throw1">Throw Banana</button>
+        </div>
+        <div id="player2Controls" class="player-info" style="display: none;">
+             <span>Player 2</span><br>
+            <label for="angle2">Angle:</label>
+            <input type="number" id="angle2" min="0" max="180" value="135"><br>
+            <label for="velocity2">Velocity:</label>
+            <input type="number" id="velocity2" min="1" max="200" value="30"><br>
+            <button id="throw2">Throw Banana</button>
+        </div>
+    </div>
+
+    <div id="message">Arrows: Aim | Space/Enter/Button: Throw</div>
+    <button id="resetButton" style="margin-top: 10px; display: none;">Play Again?</button>
+
+
+    <script>
+        // ====================================
+        // CONFIGURATION & CONSTANTS
+        // ====================================
+        const GameConfig = {
+            // Element IDs
+            canvasId: 'gameCanvas',
+            messageId: 'message',
+            windId: 'windDisplay',
+            resetBtnId: 'resetButton',
+            score1Id: 'score1',
+            score2Id: 'score2',
+            p1ControlsId: 'player1Controls',
+            p2ControlsId: 'player2Controls',
+            throw1BtnId: 'throw1',
+            throw2BtnId: 'throw2',
+            angle1InputId: 'angle1',
+            velocity1InputId: 'velocity1',
+            angle2InputId: 'angle2',
+            velocity2InputId: 'velocity2',
+
+            // Gameplay Constants
+            gorillaWidth: 36,
+            gorillaHeight: 36,
+            bananaSize: 6,
+            gravity: 0.15,
+            maxWind: 0.45, // Reduced wind strength
+            buildingMinWidth: 40,
+            buildingMaxWidth: 80,
+            buildingMinHeightRatio: 0.1,
+            buildingMaxHeightRatio: 0.6,
+            sunRadius: 30,
+            explosionFrames: 30,
+            explosionMaxRadius: 40,
+            pointsToWin: 3,
+            angleStep: 1,       // Degrees per key press
+            velocityStep: 2,    // Velocity units per key press
+            defaultVelocity: 30,
+            velocityFactor: 5   // Factor to divide input velocity by for physics scaling
+        };
+
+        // ====================================
+        // PHYSICS HELPER OBJECT
+        // Contains pure functions for physics calculations
+        // ====================================
+        const Physics = {
+            /**
+             * Calculates the next position and velocity of the banana.
+             * @param {object} currentBanana - Current state { x, y, vx, vy, rotation }.
+             * @param {number} wind - Current wind horizontal effect per step.
+             * @param {number} gravity - Gravity vertical effect per step.
+             * @returns {object} Next banana state { x, y, vx, vy, rotation }.
+             */
+            calculateNextBananaState: function(currentBanana, wind, gravity) {
+                if (!currentBanana) return null;
+
+                const nextVx = currentBanana.vx + wind;
+                const nextVy = currentBanana.vy + gravity;
+                const nextX = currentBanana.x + nextVx;
+                const nextY = currentBanana.y + nextVy;
+                const nextRotation = Math.atan2(nextVy, nextVx); // Update rotation based on new vector
+
+                return {
+                    ...currentBanana, // Carry over any other properties if needed
+                    x: nextX,
+                    y: nextY,
+                    vx: nextVx,
+                    vy: nextVy,
+                    rotation: nextRotation
+                };
+            },
+
+            /**
+             * Checks for collisions between the banana and game elements.
+             * @param {object} bananaPos - Current banana position { x, y }.
+             * @param {object} gorilla1Pos - Player 1 position { x, y }.
+             * @param {object} gorilla2Pos - Player 2 position { x, y }.
+             * @param {number} currentPlayer - The player who threw the banana (1 or 2).
+             * @param {Array} buildings - Array of building objects { x, y, width, height }.
+             * @param {object} sunPos - Sun position { x, y }.
+             * @param {number} canvasWidth - Width of the canvas.
+             * @param {number} canvasHeight - Height of the canvas.
+             * @param {object} config - Game configuration object.
+             * @returns {object | null} Collision details { type: 'gorilla'|'building'|'sun'|'boundary', point: {x, y} } or null if no collision.
+             */
+            checkCollisions: function(bananaPos, gorilla1Pos, gorilla2Pos, currentPlayer, buildings, sunPos, canvasWidth, canvasHeight, config) {
+                const opponentGorillaPos = (currentPlayer === 1) ? gorilla2Pos : gorilla1Pos;
+                const gorillaHitbox = {
+                    x: opponentGorillaPos.x,
+                    y: opponentGorillaPos.y,
+                    width: config.gorillaWidth,
+                    height: config.gorillaHeight
+                };
+
+                // 1. Check Gorilla Hit
+                if (bananaPos.x >= gorillaHitbox.x && bananaPos.x <= gorillaHitbox.x + gorillaHitbox.width &&
+                    bananaPos.y >= gorillaHitbox.y && bananaPos.y <= gorillaHitbox.y + gorillaHitbox.height) {
+                    return {
+                        type: 'gorilla',
+                        point: {
+                            x: opponentGorillaPos.x + config.gorillaWidth / 2, // Explode in center
+                            y: opponentGorillaPos.y + config.gorillaHeight / 2
+                        }
+                    };
+                }
+
+                // 2. Check Building Hit
+                for (const building of buildings) {
+                    if (bananaPos.x >= building.x && bananaPos.x <= building.x + building.width &&
+                        bananaPos.y >= building.y) { // Banana center is horizontally within and vertically below or at the top
+                        return {
+                            type: 'building',
+                            point: {
+                                x: bananaPos.x,
+                                y: Math.max(bananaPos.y, building.y) // Impact point approx on building surface
+                            }
+                        };
+                    }
+                }
+
+                // 3. Check Sun Hit (Visual)
+                if (sunPos && Math.hypot(bananaPos.x - sunPos.x, bananaPos.y - sunPos.y) < config.sunRadius) {
+                     return {
+                        type: 'sun',
+                        point: { x: bananaPos.x, y: bananaPos.y } // Explode where it hit
+                     };
+                }
+
+                // 4. Check Out Of Bounds
+                const bananaSize = config.bananaSize; // Use for boundary check buffer
+                if (bananaPos.x < -bananaSize || bananaPos.x > canvasWidth + bananaSize || bananaPos.y > canvasHeight + bananaSize) {
+                    return { type: 'boundary', point: { x: bananaPos.x, y: bananaPos.y } };
+                }
+
+                // 5. No Collision
+                return null;
+            }
+        };
+
+        // ====================================
+        // RENDERER CLASS (Drawing Only)
+        // ====================================
+        class Renderer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                if (!this.canvas) throw new Error(`Canvas element with ID "${canvasId}" not found.`);
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+            }
+
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+
+            /**
+             * Draws the entire game state onto the canvas.
+             * @param {object} gameState - The current state of the game.
+             */
+            draw(gameState) {
+                this.clear();
+                this._drawSky();
+                this._drawSun(gameState.sunPos, gameState.explosion);
+                this._drawBuildings(gameState.buildings);
+                if (gameState.gorilla1Pos) this._drawGorilla(gameState.gorilla1Pos, false);
+                if (gameState.gorilla2Pos) this._drawGorilla(gameState.gorilla2Pos, true);
+                if (gameState.banana) this._drawBanana(gameState.banana);
+                if (gameState.explosion) this._drawExplosion(gameState.explosion);
+            }
+
+            _drawSky() {
+                this.ctx.fillStyle = '#6495ED'; // Cornflower Blue
+                this.ctx.fillRect(0, 0, this.width, this.height);
+            }
+
+            _drawSun(sunPos, explosionState) {
+                if (!sunPos) return;
+
+                const radius = GameConfig.sunRadius;
+                const eyeOffset = radius * 0.3;
+                const eyeRadius = radius * 0.1;
+                const mouthRadius = radius * 0.5;
+
+                // Draw sun body
+                this.ctx.fillStyle = 'yellow';
+                this.ctx.beginPath();
+                this.ctx.arc(sunPos.x, sunPos.y, radius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Draw eyes
+                this.ctx.fillStyle = 'black';
+                this.ctx.beginPath();
+                this.ctx.arc(sunPos.x - eyeOffset, sunPos.y - eyeOffset * 0.5, eyeRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.beginPath();
+                this.ctx.arc(sunPos.x + eyeOffset, sunPos.y - eyeOffset * 0.5, eyeRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Draw mouth (smile or frown)
+                this.ctx.lineWidth = 2;
+                const isSunHit = explosionState && Math.hypot(explosionState.x - sunPos.x, explosionState.y - sunPos.y) < radius + GameConfig.explosionMaxRadius * 0.5;
+                if (isSunHit) {
+                    // Frown
+                    this.ctx.beginPath();
+                    this.ctx.arc(sunPos.x, sunPos.y + mouthRadius * 0.7, mouthRadius * 0.8, Math.PI, 0); // Frown points down
+                    this.ctx.stroke();
+                } else {
+                    // Smile
+                    this.ctx.beginPath();
+                    this.ctx.arc(sunPos.x, sunPos.y + eyeOffset * 0.5, mouthRadius, 0.1 * Math.PI, 0.9 * Math.PI); // Smile points up
+                    this.ctx.stroke();
+                }
+            }
+
+            _drawBuildings(buildings) {
+                const windowSize = 5;
+                const windowGap = 3;
+
+                buildings.forEach(building => {
+                    // Draw building block
+                    this.ctx.fillStyle = building.color;
+                    this.ctx.fillRect(building.x, building.y, building.width, building.height);
+
+                    // Draw windows (optional detail)
+                    this.ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // Semi-transparent yellow
+                    for (let windowY = building.y + windowGap * 3; windowY < this.height - windowSize - windowGap; windowY += windowSize + windowGap) {
+                        for (let windowX = building.x + windowGap * 2; windowX < building.x + building.width - windowSize - windowGap; windowX += windowSize + windowGap) {
+                            if (Math.random() > 0.4) { // Randomly 'lit' windows
+                                this.ctx.fillRect(windowX, windowY, windowSize, windowSize);
+                            }
+                        }
+                    }
+                });
+            }
+
+            _drawGorilla(position, facingLeft) {
+                const GORILLA_WIDTH = GameConfig.gorillaWidth;
+                const GORILLA_HEIGHT = GameConfig.gorillaHeight;
+                const widthUnit = GORILLA_WIDTH / 6; // Base unit for blocky drawing
+                const heightUnit = GORILLA_HEIGHT / 6;
+
+                this.ctx.save();
+                // Translate origin to the bottom-center for easier relative drawing
+                this.ctx.translate(position.x + GORILLA_WIDTH / 2, position.y + GORILLA_HEIGHT);
+                if (facingLeft) {
+                    this.ctx.scale(-1, 1); // Flip horizontally if facing left
+                }
+
+                this.ctx.fillStyle = '#654321'; // Brown
+
+                // Legs (sitting) - Relative to bottom-center origin (0,0)
+                this.ctx.fillRect(-widthUnit * 2, -heightUnit * 1, widthUnit * 1.5, heightUnit); // Left leg
+                this.ctx.fillRect(widthUnit * 0.5, -heightUnit * 1, widthUnit * 1.5, heightUnit); // Right leg
+
+                // Body
+                this.ctx.fillRect(-widthUnit * 2, -heightUnit * 4, widthUnit * 4, heightUnit * 3);
+
+                // Head
+                this.ctx.fillRect(-widthUnit * 1.5, -heightUnit * 5.5, widthUnit * 3, heightUnit * 1.8);
+
+                // Arm Down (resting)
+                this.ctx.fillRect(-widthUnit * 3, -heightUnit * 3.5, widthUnit * 1.5, heightUnit * 2.5); // Arm segment
+                this.ctx.fillRect(-widthUnit * 3.5, -heightUnit * 1.5, widthUnit, heightUnit);       // Hand/Fist
+
+                // Arm Up (throwing)
+                this.ctx.fillRect(widthUnit * 1.5, -heightUnit * 5, widthUnit * 1.5, heightUnit * 3);    // Upper arm segment
+                this.ctx.fillRect(widthUnit * 2.5, -heightUnit * 5.5, widthUnit * 1.5, heightUnit * 1.5); // Forearm/Hand
+
+                // Eyes
+                this.ctx.fillStyle = 'white';
+                this.ctx.fillRect(-widthUnit * 0.8, -heightUnit * 4.8, widthUnit * 0.4, heightUnit * 0.4); // Left eye
+                this.ctx.fillRect(widthUnit * 0.4, -heightUnit * 4.8, widthUnit * 0.4, heightUnit * 0.4); // Right eye
+
+                this.ctx.restore();
+            }
+
+            _drawBanana(bananaState) {
+                const size = GameConfig.bananaSize;
+                this.ctx.save();
+                this.ctx.translate(bananaState.x, bananaState.y);
+                this.ctx.rotate(bananaState.rotation); // Use pre-calculated rotation
+                this.ctx.fillStyle = 'yellow';
+                this.ctx.beginPath();
+                // Simple curved banana shape
+                this.ctx.moveTo(0, -size / 3);
+                this.ctx.lineTo(size, 0);
+                this.ctx.lineTo(0, size / 3);
+                this.ctx.quadraticCurveTo(-size * 0.8, 0, 0, -size / 3); // Curve back
+                this.ctx.fill();
+                this.ctx.restore();
+            }
+
+            _drawExplosion(explosionState) {
+                 const progress = explosionState.frame / GameConfig.explosionFrames;
+                 const currentRadius = progress * GameConfig.explosionMaxRadius;
+                 const alpha = 1.0 - progress; // Fade out effect
+
+                 // Outer orange blast
+                 this.ctx.fillStyle = `rgba(255, 165, 0, ${alpha})`;
+                 this.ctx.beginPath();
+                 this.ctx.arc(explosionState.x, explosionState.y, currentRadius, 0, Math.PI * 2);
+                 this.ctx.fill();
+
+                 // Inner yellow core
+                 this.ctx.fillStyle = `rgba(255, 255, 0, ${alpha * 0.7})`; // Slightly less opaque
+                 this.ctx.beginPath();
+                 this.ctx.arc(explosionState.x, explosionState.y, currentRadius * 0.6, 0, Math.PI * 2);
+                 this.ctx.fill();
+            }
+        }
+
+        // ====================================
+        // UI CLASS (DOM Interaction Only)
+        // ====================================
+        class UI {
+            constructor(config) {
+                // Store references to all needed DOM elements
+                this.elements = {
+                    canvas: document.getElementById(config.canvasId),
+                    message: document.getElementById(config.messageId),
+                    wind: document.getElementById(config.windId),
+                    resetBtn: document.getElementById(config.resetBtnId),
+                    score1: document.getElementById(config.score1Id),
+                    score2: document.getElementById(config.score2Id),
+                    p1Controls: document.getElementById(config.p1ControlsId),
+                    p2Controls: document.getElementById(config.p2ControlsId),
+                    throw1Btn: document.getElementById(config.throw1BtnId),
+                    throw2Btn: document.getElementById(config.throw2BtnId),
+                    angle1In: document.getElementById(config.angle1InputId),
+                    vel1In: document.getElementById(config.velocity1InputId),
+                    angle2In: document.getElementById(config.angle2InputId),
+                    vel2In: document.getElementById(config.velocity2InputId)
+                };
+                // Basic check if elements were found
+                for(const key in this.elements) {
+                    if (!this.elements[key]) console.warn(`UI element with ID "${config[key+'Id']}" not found.`);
+                }
+            }
+
+            // --- Getters for Elements (Optional, direct access via this.elements also works) ---
+            getElement(name) { return this.elements[name]; }
+
+            // --- Update Display Methods ---
+            updateScores(scoreState) {
+                this.elements.score1.textContent = `P1: ${scoreState.player1}`;
+                this.elements.score2.textContent = `P2: ${scoreState.player2}`;
+            }
+
+            updateWind(windValue) {
+                const indicatorValue = Math.round(windValue * 10); // Scale for display
+                let arrow = "";
+                if (indicatorValue > 0) arrow = " ->";
+                else if (indicatorValue < 0) arrow = " <-";
+                this.elements.wind.textContent = `Wind: ${Math.abs(indicatorValue)}${arrow}`;
+            }
+
+            displayMessage(messageText) { this.elements.message.textContent = messageText; }
+            showResetButton(show) { this.elements.resetBtn.style.display = show ? 'block' : 'none'; }
+
+            // --- Input Value Getters/Setters ---
+            getAngle(player) {
+                const inputElement = (player === 1) ? this.elements.angle1In : this.elements.angle2In;
+                return parseFloat(inputElement.value);
+            }
+            getVelocity(player) {
+                 const inputElement = (player === 1) ? this.elements.vel1In : this.elements.vel2In;
+                 return parseFloat(inputElement.value);
+            }
+            setAngle(player, value) {
+                 const inputElement = (player === 1) ? this.elements.angle1In : this.elements.angle2In;
+                 inputElement.value = value;
+            }
+            setVelocity(player, value) {
+                 const inputElement = (player === 1) ? this.elements.vel1In : this.elements.vel2In;
+                 inputElement.value = value;
+            }
+
+            // --- Control Visibility/State ---
+            enableControls(player) {
+                const isPlayer1Active = (player === 1);
+                this.elements.p1Controls.style.display = isPlayer1Active ? 'block' : 'none';
+                this.elements.p2Controls.style.display = !isPlayer1Active ? 'block' : 'none';
+
+                // Enable/disable specific inputs/buttons
+                this.elements.throw1Btn.disabled = !isPlayer1Active;
+                this.elements.angle1In.disabled = !isPlayer1Active;
+                this.elements.vel1In.disabled = !isPlayer1Active;
+                this.elements.throw2Btn.disabled = isPlayer1Active;
+                this.elements.angle2In.disabled = isPlayer1Active;
+                this.elements.vel2In.disabled = isPlayer1Active;
+            }
+
+            disableControls() {
+                // Disable all player inputs/buttons
+                [this.elements.throw1Btn, this.elements.angle1In, this.elements.vel1In,
+                 this.elements.throw2Btn, this.elements.angle2In, this.elements.vel2In]
+                 .forEach(element => element.disabled = true);
+            }
+
+            focusCanvas() { this.elements.canvas.focus(); }
+        }
+
+        // ====================================
+        // INPUT HANDLER CLASS
+        // Sets up listeners and delegates actions to the game instance
+        // ====================================
+        class InputHandler {
+            constructor(gameInstance, uiInstance, config) {
+                this.game = gameInstance; // Reference to the main GorillasGame
+                this.ui = uiInstance;     // Reference to the UI manager
+                this.config = config;
+                this._boundKeyDown = this._handleKeyDown.bind(this); // Pre-bind for listener removal
+            }
+
+            setupListeners() {
+                document.addEventListener('keydown', this._boundKeyDown);
+                // Add button listeners - delegate throw action to game instance
+                this.ui.getElement('throw1Btn').addEventListener('click', () => this.game.attemptThrow(1));
+                this.ui.getElement('throw2Btn').addEventListener('click', () => this.game.attemptThrow(2));
+                this.ui.getElement('resetBtn').addEventListener('click', () => this.game.resetGame());
+            }
+
+            _handleKeyDown(event) {
+                 // Ignore inputs if game is over or projectile is in flight/exploding
+                 if (this.game.state.gameOver || this.game.state.banana || this.game.state.explosion) {
+                    return;
+                 }
+
+                 const activeElement = document.activeElement;
+                 const isInputFocused = activeElement === this.ui.getElement('angle1In') || activeElement === this.ui.getElement('vel1In') ||
+                                      activeElement === this.ui.getElement('angle2In') || activeElement === this.ui.getElement('vel2In');
+
+                 // Space and Enter always trigger a throw attempt
+                 if (event.key === 'Enter' || event.key === ' ') {
+                     event.preventDefault(); // Prevent default (page scroll, button click, typing space)
+                     this.game.attemptThrow(this.game.state.currentPlayer); // Delegate to game
+                     return; // Action handled
+                 }
+
+                 // If typing in an input field, allow normal input (digits, backspace etc.)
+                 // Arrow keys are ignored here by default browser behavior usually, but explicitly returning ensures it.
+                 if (isInputFocused) {
+                     return;
+                 }
+
+                 // If not focused on input, handle arrow keys for aiming adjustments
+                 let adjustmentMade = false;
+                 switch (event.key) {
+                     case "ArrowUp":
+                         this.game.adjustAngle(this.config.angleStep); // Delegate adjustment
+                         adjustmentMade = true;
+                         break;
+                     case "ArrowDown":
+                         this.game.adjustAngle(-this.config.angleStep);
+                         adjustmentMade = true;
+                         break;
+                     case "ArrowLeft":
+                         this.game.adjustVelocity(-this.config.velocityStep);
+                         adjustmentMade = true;
+                         break;
+                     case "ArrowRight":
+                         this.game.adjustVelocity(this.config.velocityStep);
+                         adjustmentMade = true;
+                         break;
+                 }
+
+                 // Prevent page scrolling if arrow keys were used for game control
+                 if (adjustmentMade) {
+                     event.preventDefault();
+                 }
+            }
+
+            detachListeners() { // Optional cleanup method
+                 document.removeEventListener('keydown', this._boundKeyDown);
+                 // Could remove button listeners here too if dynamic cleanup needed
+            }
+        }
+
+
+        // ====================================
+        // GORILLAS GAME CLASS (Main Orchestrator)
+        // Holds state, manages turns, uses other components
+        // ====================================
+        class GorillasGame {
+            constructor(gameConfig) {
+                this.config = gameConfig;
+                // Create instances of helper classes
+                this.renderer = new Renderer(this.config.canvasId);
+                this.ui = new UI(this.config);
+                this.inputHandler = new InputHandler(this, this.ui, this.config); // Pass self, UI, config
+                // Game state is initialized in resetGame
+                this.state = {};
+                this.animationFrameId = null;
+            }
+
+            /** Initializes the game, resets state, sets up listeners */
+            init() {
+                this.resetGame();
+                this.inputHandler.setupListeners();
+                this.requestRedraw(); // Draw initial static scene
+            }
+
+            /** Resets the game to its initial state for a new round */
+            resetGame() {
+                if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; }
+
+                this.state = {
+                    currentPlayer: 1,
+                    score: { player1: 0, player2: 0 },
+                    wind: 0,
+                    gameOver: false,
+                    buildings: this._generateBuildings(), // Generate buildings first
+                    gorilla1Pos: null, // Placed after buildings
+                    gorilla2Pos: null,
+                    sunPos: this._placeSun(),
+                    banana: null,      // Banana state { x, y, vx, vy, rotation }
+                    explosion: null,   // Explosion state { x, y, frame }
+                    canvasWidth: this.renderer.width, // Store dimensions if needed elsewhere
+                    canvasHeight: this.renderer.height
+                };
+                this._placeGorillas(); // Place gorillas on the generated buildings
+                this._updateWind();    // Set initial wind and update UI
+
+                // Update UI for new game state
+                this.ui.updateScores(this.state.score);
+                // this.ui.updateWind(this.state.wind); // Already called by _updateWind
+                this.ui.showResetButton(false);
+                this.ui.displayMessage(`Player 1's turn. Arrows: Aim | Space/Enter: Throw`);
+                this.ui.setAngle(1, 45); this.ui.setVelocity(1, this.config.defaultVelocity);
+                this.ui.setAngle(2, 135); this.ui.setVelocity(2, this.config.defaultVelocity);
+                this.ui.enableControls(this.state.currentPlayer);
+                this.ui.focusCanvas(); // Ensure keyboard controls work initially
+
+                this.requestRedraw();
+            }
+
+             // --- State Setup Helpers (Internal) ---
+             _generateBuildings() {
+                 let buildings = []; let currentX = 0;
+                 const { buildingMaxWidth, buildingMinWidth, buildingMinHeightRatio, buildingMaxHeightRatio } = this.config;
+                 const canvasHeight = this.renderer.height;
+
+                 while (currentX < this.renderer.width) {
+                     const width = Math.random() * (buildingMaxWidth - buildingMinWidth) + buildingMinWidth;
+                     // Ensure height is at least a minimum pixel value (e.g., 10px)
+                     const height = Math.max(10, (Math.random() * (buildingMaxHeightRatio - buildingMinHeightRatio) + buildingMinHeightRatio) * canvasHeight);
+                     const color = `rgb(${Math.random()*100+50},${Math.random()*100+50},${Math.random()*100+50})`;
+                     buildings.push({ x: currentX, y: canvasHeight - height, width: width, height: height, color: color });
+                     currentX += width;
+                 }
+                 // Ensure last building stretches to the edge
+                 if(buildings.length > 0) { buildings[buildings.length - 1].width = this.renderer.width - buildings[buildings.length - 1].x; }
+                 return buildings;
+             }
+
+             _placeGorillas() {
+                 // Requires buildings to be generated first
+                 if (!this.state.buildings || this.state.buildings.length < 2) {
+                     console.error("Cannot place gorillas without at least 2 buildings.");
+                     // Place them in default corners as fallback?
+                     const fallbackY = this.state.canvasHeight * (1 - this.config.buildingMinHeightRatio) - this.config.gorillaHeight;
+                     this.state.gorilla1Pos = { x: this.config.gorillaWidth, y: fallbackY };
+                     this.state.gorilla2Pos = { x: this.state.canvasWidth - this.config.gorillaWidth * 2, y: fallbackY };
+                     return;
+                 }
+                 const { gorillaWidth, gorillaHeight } = this.config;
+                 const buildings = this.state.buildings;
+                 const midPointIndex = Math.floor(buildings.length / 2); // Index to separate sides
+
+                 // Place P1 on left side, P2 on right side
+                 const buildingIndex1 = Math.floor(Math.random() * Math.min(3, midPointIndex)); // Choose from first few buildings on left
+                 const building1 = buildings[buildingIndex1];
+                 this.state.gorilla1Pos = { x: building1.x + building1.width / 2 - gorillaWidth / 2, y: building1.y - gorillaHeight };
+
+                 const buildingIndex2 = buildings.length - 1 - Math.floor(Math.random() * Math.min(3, buildings.length - midPointIndex)); // Choose from last few buildings on right
+                 const building2 = buildings[buildingIndex2];
+                 this.state.gorilla2Pos = { x: building2.x + building2.width / 2 - gorillaWidth / 2, y: building2.y - gorillaHeight };
+             }
+
+             _placeSun() {
+                 const radius = this.config.sunRadius;
+                 const canvasWidth = this.renderer.width;
+                 const canvasHeight = this.renderer.height;
+                 return {
+                    x: Math.random() * (canvasWidth - radius * 4) + radius * 2, // Avoid edges
+                    y: Math.random() * (canvasHeight * 0.3) + radius          // Place in upper part of sky
+                 };
+             }
+
+            _updateWind() {
+                this.state.wind = (Math.random() * 2 - 1) * this.config.maxWind; // -max to +max
+                this.ui.updateWind(this.state.wind); // Update display via UI class
+            }
+
+            // --- Input Adjustments (Called by InputHandler) ---
+            adjustAngle(deltaAngle) {
+                const currentPlayer = this.state.currentPlayer;
+                let currentAngle = this.ui.getAngle(currentPlayer);
+                let newAngle = currentAngle + deltaAngle;
+
+                // Clamp angle using min/max from the corresponding input element
+                const inputElement = (currentPlayer === 1) ? this.ui.getElement('angle1In') : this.ui.getElement('angle2In');
+                const minAngle = parseFloat(inputElement.min);
+                const maxAngle = parseFloat(inputElement.max);
+                newAngle = Math.max(minAngle, Math.min(maxAngle, newAngle));
+
+                this.ui.setAngle(currentPlayer, newAngle);
+            }
+
+            adjustVelocity(deltaVelocity) {
+                 const currentPlayer = this.state.currentPlayer;
+                 let currentVelocity = this.ui.getVelocity(currentPlayer);
+                 let newVelocity = currentVelocity + deltaVelocity;
+
+                 // Clamp velocity using min/max from the corresponding input element
+                 const inputElement = (currentPlayer === 1) ? this.ui.getElement('vel1In') : this.ui.getElement('vel2In');
+                 const minVelocity = parseFloat(inputElement.min);
+                 const maxVelocity = parseFloat(inputElement.max);
+                 newVelocity = Math.max(minVelocity, Math.min(maxVelocity, newVelocity));
+
+                 this.ui.setVelocity(currentPlayer, newVelocity);
+            }
+
+            // --- Game Actions (Called by InputHandler or internally) ---
+
+            /** Validates input and initiates the banana throw sequence */
+            attemptThrow(player) {
+                // Prevent throwing if not this player's turn, or if animating/game over
+                if (player !== this.state.currentPlayer || this.state.banana || this.state.explosion || this.state.gameOver) {
+                    return;
+                }
+
+                const angleDegrees = this.ui.getAngle(player);
+                const velocity = this.ui.getVelocity(player);
+
+                // Input Validation
+                const angleInput = (player === 1) ? this.ui.getElement('angle1In') : this.ui.getElement('angle2In');
+                const velocityInput = (player === 1) ? this.ui.getElement('vel1In') : this.ui.getElement('vel2In');
+                const minAngle = parseFloat(angleInput.min); const maxAngle = parseFloat(angleInput.max);
+                const minVel = parseFloat(velocityInput.min); const maxVel = parseFloat(velocityInput.max);
+
+                if (isNaN(angleDegrees) || isNaN(velocity) ||
+                    velocity < minVel || velocity > maxVel ||
+                    angleDegrees < minAngle || angleDegrees > maxAngle) {
+                    this.ui.displayMessage(`Invalid input. Angle ${minAngle}-${maxAngle}, Velocity ${minVel}-${maxVel}.`);
+                    this.ui.focusCanvas(); // Move focus away from potentially invalid input
+                    return;
+                }
+
+                // If validation passes, proceed to throw
+                this._throwBanana(angleDegrees, velocity);
+            }
+
+            /** Internal function to set up the banana state and start animation */
+            _throwBanana(angleDegrees, velocity) {
+                const player = this.state.currentPlayer;
+                const { gorillaWidth, gorillaHeight, velocityFactor } = this.config;
+                let startX, startY; // Banana starting position
+
+                // Determine start position based on player and gorilla sprite
+                if (player === 1) {
+                    startX = this.state.gorilla1Pos.x + gorillaWidth * 0.85; // Near right hand
+                    startY = this.state.gorilla1Pos.y + gorillaHeight * 0.15; // Higher up
+                } else { // Player 2
+                    startX = this.state.gorilla2Pos.x + gorillaWidth * 0.15; // Near left hand (sprite is flipped)
+                    startY = this.state.gorilla2Pos.y + gorillaHeight * 0.15;
+                }
+
+                // Convert aiming angle (0=away, 90=up) to physics angle (radians, 0=right, PI/2=up)
+                let angleRadians;
+                if (player === 1) {
+                    angleRadians = (angleDegrees * Math.PI) / 180;
+                } else { // Player 2 needs angle inverted relative to screen horizontal
+                    angleRadians = ((180 - angleDegrees) * Math.PI) / 180;
+                }
+
+                // Calculate initial velocity vector components
+                const velocityScale = velocity / velocityFactor; // Apply scaling factor
+                const initialVx = Math.cos(angleRadians) * velocityScale;
+                const initialVy = -Math.sin(angleRadians) * velocityScale; // Y positive is down, so up is negative
+
+                // Set banana state
+                this.state.banana = {
+                    x: startX,
+                    y: startY,
+                    vx: initialVx,
+                    vy: initialVy,
+                    rotation: angleRadians // Store initial rotation
+                };
+
+                this.ui.disableControls();
+                this.ui.displayMessage("Banana thrown!");
+                this.gameLoop(); // Ensure animation loop is running
+            }
+
+            /** Update banana physics state and check for collisions */
+            _updateBanana() {
+                if (!this.state.banana) return;
+
+                // Calculate next state using Physics helper
+                this.state.banana = Physics.calculateNextBananaState(
+                    this.state.banana,
+                    this.state.wind,
+                    this.config.gravity
+                );
+
+                // Check for collisions using Physics helper
+                const collision = Physics.checkCollisions(
+                    this.state.banana, // Pass only position needed: {x, y}
+                    this.state.gorilla1Pos,
+                    this.state.gorilla2Pos,
+                    this.state.currentPlayer,
+                    this.state.buildings,
+                    this.state.sunPos,
+                    this.state.canvasWidth,
+                    this.state.canvasHeight,
+                    this.config
+                );
+
+                // --- Handle Collision Outcome ---
+                if (collision) {
+                    this.state.banana = null; // Stop banana simulation
+
+                    if (collision.type === 'boundary') {
+                        this.ui.displayMessage("Miss!");
+                        this.switchTurn(); // Switch immediately on out-of-bounds
+                    } else {
+                        // Hit gorilla, building, or sun - start explosion
+                        this.state.explosion = { x: collision.point.x, y: collision.point.y, frame: 0 };
+
+                        if (collision.type === 'gorilla') {
+                            this.ui.displayMessage(`Player ${this.state.currentPlayer} HITS!`);
+                            this._updateScore(); // Update score for the hit
+                        } else if (collision.type === 'building') {
+                            this.ui.displayMessage("Hit a building!");
+                        } else if (collision.type === 'sun') {
+                            this.ui.displayMessage("Ouch! Right in the sun!");
+                        }
+                        // Turn will switch after explosion finishes
+                    }
+                    // Ensure game loop continues for explosion or next turn setup
+                    this.gameLoop();
+                }
+            }
+
+             /** Update explosion animation state */
+            _updateExplosion() {
+                if (!this.state.explosion) return;
+
+                this.state.explosion.frame++;
+
+                // Check if explosion animation is finished
+                if (this.state.explosion.frame >= this.config.explosionFrames) {
+                    this.state.explosion = null; // End explosion state
+                    if (!this.state.gameOver) {
+                        this.switchTurn(); // Switch turn after explosion finishes
+                    } else {
+                        this.requestRedraw(); // Draw final state if game ended on explosion
+                    }
+                }
+            }
+
+             /** Increment score for the current player and check for game over */
+             _updateScore() {
+                 if (this.state.gameOver) return; // Don't update if already over
+
+                 if (this.state.currentPlayer === 1) {
+                     this.state.score.player1++;
+                 } else {
+                     this.state.score.player2++;
+                 }
+                 this.ui.updateScores(this.state.score); // Update display
+                 this._checkGameOver(); // Check if this score ended the game
+             }
+
+            /** Check if a player has reached the winning score */
+            _checkGameOver() {
+                 // Check only if game isn't already marked as over
+                 if (!this.state.gameOver &&
+                     (this.state.score.player1 >= this.config.pointsToWin || this.state.score.player2 >= this.config.pointsToWin))
+                 {
+                     this.state.gameOver = true;
+                     const winner = (this.state.score.player1 >= this.config.pointsToWin) ? 1 : 2;
+                     this.ui.displayMessage(`GAME OVER! Player ${winner} wins!`);
+                     this.ui.disableControls(); // Ensure controls remain disabled
+                     this.ui.showResetButton(true);
+                 }
+             }
+
+            /** Switch to the other player's turn */
+            switchTurn() {
+                if (this.state.gameOver) return; // Should not happen if called correctly, but safe check
+
+                this.state.currentPlayer = (this.state.currentPlayer === 1) ? 2 : 1;
+                this._updateWind(); // Change wind between turns
+                this.ui.enableControls(this.state.currentPlayer); // Update UI for the new player
+                this.ui.displayMessage(`Player ${this.state.currentPlayer}'s turn. Arrows: Aim | Space/Enter: Throw`);
+                this.ui.focusCanvas(); // Set focus for keyboard controls
+                this.requestRedraw();  // Redraw needed to show new wind etc.
+            }
+
+            // --- Game Loop & Drawing ---
+
+            /** Main animation loop, managed by requestAnimationFrame */
+            gameLoop() {
+                // Clear previous frame request to avoid duplicates if called rapidly
+                if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); }
+
+                // --- Update Game State ---
+                // Order matters: update banana first, then explosion
+                if (this.state.banana) { this._updateBanana(); }
+                if (this.state.explosion) { this._updateExplosion(); }
+
+                // --- Render Current State ---
+                this.renderer.draw(this.state);
+
+                // --- Continue Loop? ---
+                // Keep requesting frames if banana is flying OR explosion is happening
+                if (this.state.banana || this.state.explosion) {
+                    // Use arrow function to preserve 'this' context
+                    this.animationFrameId = requestAnimationFrame(() => this.gameLoop());
+                } else {
+                    this.animationFrameId = null; // Stop the loop when idle
+                    // Ensure UI controls are correctly enabled when idle & game not over
+                    if (!this.state.gameOver) {
+                        this.ui.enableControls(this.state.currentPlayer);
+                    }
+                }
+            }
+
+            /** Requests a single redraw, typically for non-animated state changes */
+            requestRedraw() {
+                // If the main loop isn't running (idle), draw the current state once.
+                if (!this.animationFrameId) {
+                    this.renderer.draw(this.state);
+                     // Make sure controls are correctly set after redraw in idle state
+                    // if (!this.state.gameOver) { this.ui.enableControls(this.state.currentPlayer); }
+                }
+                // If loop is running, the redraw will happen automatically in the next frame.
+            }
+        }
+
+        // ====================================
+        // INITIALIZATION
+        // Runs after the HTML is fully loaded
+        // ====================================
+        window.onload = () => {
+            const game = new GorillasGame(GameConfig); // Create game instance with config
+            game.init(); // Initialize and start the game
+        };
+
+    </script>
+
+</body>
+</html>
