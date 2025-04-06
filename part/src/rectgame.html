@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rect Game Canvas</title>
+    <style>
+        /* Basic reset and body styling */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevent scrollbars */
+            box-sizing: border-box; /* Include padding in height calculation */
+        }
+
+        body {
+            display: flex; /* Use flexbox */
+            justify-content: center; /* Center horizontally */
+            align-items: flex-start; /* Align items to the top of the container */
+            height: 100vh; /* Explicitly set body height to full viewport height */
+            padding-top: 50px; /* Fixed padding to push content down by 200 pixels */
+            background-color: #f0f0f0; /* Light gray background for contrast */
+            font-family: sans-serif; /* Basic font */
+            /* align-items: flex-start places the canvas at the top of the content area, */
+            /* which starts after the 200px padding. */
+        }
+
+        /* Style the canvas */
+        #gameCanvas {
+            border: 1px solid #333; /* Add a border to see the canvas boundaries */
+            background-color: #ffffff; /* White background for the canvas */
+            display: block; /* Prevents potential extra space below canvas */
+            /* No margin needed here */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="GameCanvas" width="400" height="600">
+        Your browser does not support the HTML canvas element.
+    </canvas>
+    <script type="module" src="./gfx-demos/squares/RectGameIndex.ts"></script>  
+
+</body>
+</html>

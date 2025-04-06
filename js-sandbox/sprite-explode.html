@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sprite Particle Explosion (Gravity)</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #333; /* Darker background */
+            color: #eee;
+            font-family: sans-serif;
+            flex-direction: column; /* Stack canvas and controls */
+        }
+
+        #myCanvas {
+            /* 2x scaling using nearest neighbor */
+            width: 512px;  /* 256 * 2 */
+            height: 512px; /* 256 * 2 */
+            image-rendering: pixelated; /* Important for nearest neighbor scaling */
+            border: 1px solid #555;
+            cursor: pointer;
+            background-color: #111; /* Canvas background */
+            display: block; /* Prevents extra space below canvas */
+        }
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px; /* Space between buttons */
+        }
+        button {
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #555;
+            color: #eee;
+            border: 1px solid #777;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #666;
+        }
+         button:active {
+            background-color: #444;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 0.9em;
+            min-height: 1.2em; /* Prevent layout shift when text changes */
+            text-align: center;
+            width: 512px; /* Match canvas width */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="256" height="256"></canvas>
+    <div id="info">Left-click to place sprite. Right-click to explode. Particles now have gravity.</div>
+    <div id="controls">
+        <button id="uploadBtn">Upload Sprite</button>
+        <button id="resetBtn">Reset</button>
+        <input type="file" id="fileInput" accept="image/png, image/jpeg, image/gif, image/bmp" style="display: none;">
+    </div>
+
+    
+    <script>
+        // --- DOM Elements ---
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fileInput = document.getElementById('fileInput');
+        const infoDiv = document.getElementById('info');
+
+        // --- Configuration ---
+        const MAX_SPRITE_DIMENSION = 64; // Max width/height for uploaded sprites is 64
+        const PARTICLE_SPEED_FACTOR = 1.5;
+        const PARTICLE_LIFE_FRAMES = 90; // Increased lifespan slightly
+        const PARTICLE_FADE_SPEED = 1 / PARTICLE_LIFE_FRAMES;
+        const GRAVITY = 0.05; // Downward acceleration per frame
+
+        // --- Global Data Structures ---
+        let sprites = []; // Holds sprite definitions { width, height, data: Uint32Array }
+        let placedSprites = []; // Holds sprites on canvas { spriteIndex, x, y }
+        let particles = []; // Holds active particles { x, y, vx, vy, r, g, b, life }
+        let uploadedSpriteIndex = -1; // Index in sprites array for the user-uploaded sprite, -1 if none
+
+        // --- Core Helper Functions ---
+
+        // Function to create the default random sprite definition
+        function createDefaultSprite(width, height) {
+            const spriteData = new Uint32Array(width * height);
+            for (let i = 0; i < width * height; i++) {
+                const r = Math.floor(Math.random() * 256);
+                const g = Math.floor(Math.random() * 256);
+                const b = Math.floor(Math.random() * 256);
+                const a = 255;
+                const color = (a << 24) | (r << 16) | (g << 8) | b; // ARGB format
+                spriteData[i] = color;
+            }
+            return { width: width, height: height, data: spriteData };
+        }
+
+        // Function to draw a defined sprite onto a context
+        function drawDefinedSprite(context, sprite, x, y) {
+            if (!sprite) {
+                console.error("Attempted to draw undefined sprite");
+                return;
+            }
+            const width = sprite.width;
+            const height = sprite.height;
+            const imageData = context.createImageData(width, height);
+            const targetData = imageData.data; // Uint8ClampedArray (RGBA)
+
+            for (let i = 0; i < width * height; i++) {
+                const color = sprite.data[i]; // Source: Uint32Array (ARGB)
+                const pixelIndex = i * 4;
+
+                // Extract ARGB, convert to RGBA for ImageData
+                const a = (color >> 24) & 0xff;
+                const r = (color >> 16) & 0xff;
+                const g = (color >> 8) & 0xff;
+                const b = color & 0xff;
+
+                targetData[pixelIndex] = r;
+                targetData[pixelIndex + 1] = g;
+                targetData[pixelIndex + 2] = b;
+                targetData[pixelIndex + 3] = a;
+            }
+            context.putImageData(imageData, Math.floor(x), Math.floor(y));
+        }
+
+        // --- Core Event Handlers (Canvas Interaction) ---
+
+        // Left-click: Place a sprite
+        function handleCanvasLeftClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (event.clientX - rect.left) * scaleX;
+            const canvasY = (event.clientY - rect.top) * scaleY;
+
+            const spriteIndexToPlace = (uploadedSpriteIndex !== -1) ? uploadedSpriteIndex : 0;
+
+            if (sprites.length > spriteIndexToPlace && sprites[spriteIndexToPlace]) {
+                 const spriteToPlace = sprites[spriteIndexToPlace];
+                 const drawX = canvasX - Math.floor(spriteToPlace.width / 2);
+                 const drawY = canvasY - Math.floor(spriteToPlace.height / 2);
+                 placedSprites.push({ spriteIndex: spriteIndexToPlace, x: drawX, y: drawY });
+            } else {
+                console.error("Selected sprite index is invalid:", spriteIndexToPlace);
+                infoDiv.textContent = "Error: Cannot place sprite.";
+            }
+        }
+
+        // Right-click: Explode a sprite
+        function handleCanvasRightClick(event) {
+            event.preventDefault(); // Prevent context menu
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (event.clientX - rect.left) * scaleX;
+            const canvasY = (event.clientY - rect.top) * scaleY;
+
+            for (let i = placedSprites.length - 1; i >= 0; i--) {
+                const placed = placedSprites[i];
+                 if (placed.spriteIndex < 0 || placed.spriteIndex >= sprites.length || !sprites[placed.spriteIndex]) {
+                    console.warn("Skipping placed sprite with invalid index:", placed.spriteIndex);
+                    continue;
+                }
+                const sprite = sprites[placed.spriteIndex];
+
+                if (canvasX >= placed.x && canvasX < placed.x + sprite.width &&
+                    canvasY >= placed.y && canvasY < placed.y + sprite.height)
+                {
+                    placedSprites.splice(i, 1); // Remove the sprite
+
+                    // Create particles
+                    for (let py = 0; py < sprite.height; py++) {
+                        for (let px = 0; px < sprite.width; px++) {
+                            const pixelIndex = py * sprite.width + px;
+                            const color = sprite.data[pixelIndex]; // ARGB
+                            const a = (color >> 24) & 0xff;
+
+                            if (a > 0) { // Only create particles for non-transparent pixels
+                                const r = (color >> 16) & 0xff;
+                                const g = (color >> 8) & 0xff;
+                                const b = color & 0xff;
+
+                                particles.push({
+                                    x: placed.x + px, y: placed.y + py,
+                                    // Give particles a slight initial upward boost to counteract immediate gravity
+                                    vx: (Math.random() - 0.5) * PARTICLE_SPEED_FACTOR * 2,
+                                    vy: (Math.random() - 0.5) * PARTICLE_SPEED_FACTOR - GRAVITY * 5, // Initial upward nudge
+                                    r: r, g: g, b: b, life: 1.0
+                                });
+                            }
+                        }
+                    }
+                    break; // Explode only one sprite per click
+                }
+            }
+        }
+
+        // --- Animation Loop ---
+        function gameLoop() {
+            // 1. Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+
+                // Apply gravity to vertical velocity
+                p.vy += GRAVITY;
+
+                // Update position based on velocity
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Decrease life
+                p.life -= PARTICLE_FADE_SPEED;
+
+                // Remove particle if life is over or it's off-screen
+                // Adjusted off-screen check for y to allow falling below canvas
+                if (p.life <= 0 || p.x < -10 || p.x > canvas.width + 10 || p.y > canvas.height + 10) { // Allow particles to fall off bottom
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 3. Draw Placed Sprites
+            for (const placed of placedSprites) {
+                 if (placed.spriteIndex >= 0 && placed.spriteIndex < sprites.length && sprites[placed.spriteIndex]) {
+                    drawDefinedSprite(ctx, sprites[placed.spriteIndex], placed.x, placed.y);
+                 } else {
+                     console.warn("Attempting to draw sprite with invalid index:", placed.spriteIndex);
+                 }
+            }
+
+            // 4. Draw Particles
+            for (const p of particles) {
+                const alpha = Math.max(0, p.life);
+                ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${alpha})`;
+                ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1);
+            }
+
+            // 5. Request Next Frame
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Initialization ---
+        function init() {
+            // Create the default sprite at index 0
+            sprites.push(createDefaultSprite(32, 32)); // Default 32x32 random sprite
+
+            // Add CORE event listeners (canvas interaction)
+            canvas.addEventListener('click', handleCanvasLeftClick);
+            canvas.addEventListener('contextmenu', handleCanvasRightClick);
+
+            // Button/Input listeners are set up in the second script
+
+            // Start the animation loop
+            gameLoop();
+        }
+
+        // Run initialization when the script loads
+        init();
+
+    </script>
+
+    
+    <script>
+        // --- Upload/Reset Helper Functions ---
+
+        // Function to convert ImageData (RGBA) to our Uint32Array (ARGB) format
+        function imageDataToSpriteData(imageData) {
+            const { width, height, data } = imageData;
+            const spriteData = new Uint32Array(width * height);
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+                const pixelIndex = i / 4;
+                spriteData[pixelIndex] = (a << 24) | (r << 16) | (g << 8) | b; // ARGB
+            }
+            return { width: width, height: height, data: spriteData };
+        }
+
+        // --- Upload/Reset Event Handlers ---
+
+        // Handle file selection
+        function handleFileSelect(event) {
+            // Accesses global variables: fileInput, infoDiv, MAX_SPRITE_DIMENSION, sprites, uploadedSpriteIndex
+            const file = event.target.files[0];
+            if (!file) {
+                infoDiv.textContent = "No file selected.";
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                infoDiv.textContent = "Error: Selected file is not an image.";
+                fileInput.value = null; return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Use <= for max dimension check
+                    if (img.width > MAX_SPRITE_DIMENSION || img.height > MAX_SPRITE_DIMENSION) {
+                        infoDiv.textContent = `Error: Image dimensions (${img.width}x${img.height}) must be ${MAX_SPRITE_DIMENSION}x${MAX_SPRITE_DIMENSION} or less.`;
+                        fileInput.value = null; return;
+                    }
+
+                    const offscreenCanvas = document.createElement('canvas');
+                    offscreenCanvas.width = img.width; offscreenCanvas.height = img.height;
+                    const offscreenCtx = offscreenCanvas.getContext('2d');
+                    offscreenCtx.drawImage(img, 0, 0);
+
+                    try {
+                        const imageData = offscreenCtx.getImageData(0, 0, img.width, img.height);
+                        const newSprite = imageDataToSpriteData(imageData);
+
+                        // Add or replace sprite at index 1
+                        if (sprites.length < 2) {
+                           sprites.push(newSprite);
+                           uploadedSpriteIndex = sprites.length - 1;
+                        } else {
+                           sprites[1] = newSprite;
+                           uploadedSpriteIndex = 1;
+                        }
+                        infoDiv.textContent = `Uploaded ${img.width}x${img.height} sprite. Left-click to place it.`;
+                    } catch (error) {
+                         console.error("Error getting image data:", error);
+                         infoDiv.textContent = "Error processing image data.";
+                    } finally {
+                         fileInput.value = null;
+                    }
+                };
+                img.onerror = function() { infoDiv.textContent = "Error loading image."; fileInput.value = null; };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() { infoDiv.textContent = "Error reading file."; fileInput.value = null; };
+            reader.readAsDataURL(file);
+        }
+
+         // Handle Reset button click
+        function handleReset() {
+            // Accesses global variables: placedSprites, particles, sprites, uploadedSpriteIndex, infoDiv, fileInput
+            placedSprites = [];
+            particles = [];
+            if (sprites.length > 1) {
+                 sprites.splice(1, sprites.length - 1); // Remove all except the first (default)
+            }
+            uploadedSpriteIndex = -1;
+            infoDiv.textContent = "Scene reset. Using default sprite.";
+            fileInput.value = null;
+        }
+
+        // --- Setup Button/Input Event Listeners ---
+        // This code runs immediately after Script 1 finishes loading and defining globals
+        if (uploadBtn && fileInput) {
+             uploadBtn.addEventListener('click', () => fileInput.click());
+             fileInput.addEventListener('change', handleFileSelect);
+        } else {
+            console.error("Upload button or file input not found for listener setup.");
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', handleReset);
+        } else {
+             console.error("Reset button not found for listener setup.");
+        }
+
+    </script>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { ParticleSystem, ParticleConfigure } from './interfaces';
 import { Rect } from "../math/geometry/Rect";
-import { Color, scaleBrightness } from "../Color";
+import { Color, scaleBrightness_deprecated } from "../Color";
 import { Particle } from './Particle';
 import { Vec2 } from '../math/vec2';
 import { lerp, randomRange, takeRandom } from '../math/math';
@@ -82,7 +82,7 @@ export class CloudSystem implements ParticleSystem {
         const p = cloud.randomPoint();
         const v = this.cloudV.copy();
         const clr = new Color(255, 255, 255);
-        scaleBrightness(clr, 1 - Math.random() * .2)
+        scaleBrightness_deprecated(clr, 1 - Math.random() * .2)
 
         const particle = Particle.create(p, v, clr);
         this.cloudParticles.push(particle);

@@ -24,7 +24,7 @@ class AppliedSpring {
     }
 }
 
-export class PhysicsSystem implements ParticleSystem {
+export class SpringParticleSystem implements ParticleSystem {
     particles: Particle[] = [];
     bounds: Rect;
 

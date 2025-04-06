@@ -1,6 +1,6 @@
 import { SystemConfig, ParticleSystem } from '../interfaces';
 import { Rect } from "../math/geometry/Rect";
-import { Color, scaleBrightness } from "../Color";
+import { Color, scaleBrightness_deprecated } from "../Color";
 import { Particle } from "./Particle";
 import { randomRange } from '../math/math';
 import { Config, UsefulContext } from './particle-system-main';
@@ -150,7 +150,7 @@ function flameColor(i: number): Color {
 
         if (i < smokeY) {
             const progress = (i / smokeY) ;
-            scaleBrightness(color, progress);
+            scaleBrightness_deprecated(color, progress);
             setSaturation(color, progress/2);
                 
          } 

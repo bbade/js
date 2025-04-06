@@ -9,7 +9,7 @@ import { GravSystem } from './grav';
 import { CloudSystem } from './cloud';
 import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
-import { PhysicsSystem } from './physics-system';
+import { SpringParticleSystem } from './spring-system';
 import { runMatrixTests } from '../test/testMatrix';
 import { Matrix3 } from '../math/Matrix';
 
@@ -151,7 +151,7 @@ function startSystem(systemType: string) {
     } else if (systemType === 'clouds') {
         activeSystem = new CloudSystem(bounds);
     } else if (systemType === 'spring') {
-        activeSystem = new PhysicsSystem(bounds);
+        activeSystem = new SpringParticleSystem(bounds);
     }
     
     activeSystem.initialize(); // Initialize
