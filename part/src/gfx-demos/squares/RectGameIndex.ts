@@ -23,6 +23,7 @@ class RectGame {
     constructor() { 
         this.context.fillStyle = "black";
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.lineWidth = .001;
 
         // Set up the canvas transform
         this.context.scale(this.canvas.height, -this.canvas.height);
@@ -175,9 +176,15 @@ function drawPerspectiveRect(original: GameRect, n: number, rectZ: number, camer
     const color  =  scaleBrightness(original.color, brightnessScale);
     context.fillStyle = color.toHexStr();
     context.fillRect(xt, yt, wt, ht);
-    // context.strokeStyle = color.scaleBrightness(0.5).toHexStr();
+
+    // context.save();
+    // context.setTransform(1, 0, 0, 1, 0, 0);
+    // context.lineWidth = 1;
+    // context.restore();
+    
+    context.strokeStyle = Color.BLUE.toHexStr();
     // context.lineWidth = 0.01;
-    // context.strokeRect(xt, yt, wt, ht);
+    context.strokeRect(xt, yt, wt, ht);
 }
 
 const game = new RectGame();
