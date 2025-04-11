@@ -1,42 +1,7 @@
-import { Matrix3 } from "../math/Matrix";
-import { sortaEqual } from "../math/util";
-import { Vec2 } from "../math/vec2";
-
-function assertEqual(actual: any, expected: any, message: string): boolean {
-    if (JSON.stringify(actual) === JSON.stringify(expected)) {
-        console.log(`Success: ${message}`);
-        return true;
-    } else {
-        console.error(`Failure: ${message}`);
-        console.error(`  Expected: ${JSON.stringify(expected)}`);
-        console.error(`  Actual: ${JSON.stringify(actual)}`);
-        return false;
-    }
-}
-    
-    function assertTrue(value: boolean, message: string): boolean {
-        if (value) {
-            console.log(`Success: ${message}`);
-            return true;
-        } else {
-            console.error(`Failure: ${message}`);
-            console.error(`  Expected: true`);
-            console.error(`  Actual: ${value}`);
-            return false;
-        }
-    }
-
-    function assertFalse(value: boolean, message: string): boolean {
-        if (!value) {
-            console.log(`Success: ${message}`);
-            return true;
-        } else {
-            console.error(`Failure: ${message}`);
-            console.error(`  Expected: false`);
-            console.error(`  Actual: ${value}`);
-            return false;
-        }
-    }
+import { Matrix3 } from "../../math/Matrix";
+import { sortaEqual } from "../../math/util";
+import { Vec2 } from "../../math/vec2";
+import { assertFalse, assertTrue } from "../TestUtils";
 
 
 

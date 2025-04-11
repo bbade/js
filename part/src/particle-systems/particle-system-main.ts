@@ -10,7 +10,7 @@ import { CloudSystem } from './cloud';
 import { mult, Vec2 } from '../math/vec2';
 import { normalizedRect } from '../math/math';
 import { SpringParticleSystem } from './spring-system';
-import { runMatrixTests } from '../test/testMatrix';
+import { runMatrixTests } from '../test/math/testMatrix';
 import { Matrix3 } from '../math/Matrix';
 
 

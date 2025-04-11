@@ -5,43 +5,44 @@ import {
 } from "../../Color";
 import { Keys } from "../../engine/Keys";
 import { Rect } from "../../math/geometry/Rect";
-import { clamp, lerp } from "../../math/math";
 import { scale, Vec2 } from "../../math/vec2";
-import { Background, BackgroundMaker, BackgroundManager } from "./BackgroundManager";
-import { drawStack, GameRect } from "./RectUtils";
+import {
+  Background,
+  BackgroundMaker,
+  BackgroundManager,
+} from "./BackgroundManager";
+import {  GameRect } from "./GameRect";
+import { BgRectStack } from "./BgRectStack";
 
 const K = {
   lineWidth: 0.001,
   canvasBgColor: Color.BLACK,
-  initialCameraHeight: 1,
+  initialCameraHeight: 3,
 };
 
 export interface SceneState {
-  bounds: Rect;   
+  bounds: Rect;
   cameraHeight: number;
   viewportCenter: Vec2;
   background: Background;
   normalizedCanvasSize: Vec2;
-
 }
 
 function makeInitialState(normalizedCanvasSize: Vec2): SceneState {
   return {
     cameraHeight: K.initialCameraHeight,
-    background: BackgroundMaker.createBackground(Rect.fromV2(new Vec2(), normalizedCanvasSize)),
-    viewportCenter:  scale(normalizedCanvasSize, 0.5),
-    bounds: new Rect(
-        0, 0,
-        normalizedCanvasSize.x, normalizedCanvasSize.y
+    background: BackgroundMaker.createBackground(
+      Rect.fromV2(new Vec2(), normalizedCanvasSize)
     ),
-    normalizedCanvasSize: normalizedCanvasSize
+    viewportCenter: scale(normalizedCanvasSize, 0.5),
+    bounds: new Rect(0, 0, normalizedCanvasSize.x, normalizedCanvasSize.y),
+    normalizedCanvasSize: normalizedCanvasSize,
   };
 }
 
 class RectGame {
   readonly canvas = document.getElementById("GameCanvas") as HTMLCanvasElement;
   readonly context = this.canvas.getContext("2d") as CanvasRenderingContext2D;
-
 
   gameState: SceneState;
   backgroundManager: BackgroundManager;
@@ -56,7 +57,9 @@ class RectGame {
     this.context.translate(0, -1);
 
     // Initialize game state
-    this.gameState = makeInitialState(  new Vec2( this.canvas.width / this.canvas.height,  1));
+    this.gameState = makeInitialState(
+      new Vec2(this.canvas.width / this.canvas.height, 1)
+    );
     this.backgroundManager = new BackgroundManager(this.gameState);
 
     Keys.init(); // Initialize key handling
@@ -89,8 +92,32 @@ class RectGame {
   draw() {
     this.context.fillStyle = K.canvasBgColor.toHexStr();
     this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const zOrderedRects: GameRect[] = [];
     this.gameState.background.stacks.forEach((stack) => {
-      drawStack(stack, this.gameState, this.context);
+      const rects = BgRectStack.getRects(stack);
+      rects.forEach((rect) => {
+        zOrderedRects.push(rect);   
+      });
+    });
+
+    zOrderedRects.sort((a, b) => b.z - a.z);
+
+    zOrderedRects.forEach((rect: GameRect) => {
+      const r = GameRect.toRect(rect);
+
+
+      drawBgRect(
+        r.x,
+        r.y,
+        r.w,
+        r.h,
+        rect.color,
+        rect.z,
+        this.gameState.cameraHeight,
+        this.gameState.viewportCenter,
+        this.context
+      );
     });
   }
 
@@ -113,14 +140,14 @@ class RectGame {
       directionInput.x += 1;
       changed = true;
     }
-    if (Keys.isDown("Equal")) {
-      this.gameState.bottomZ += 0.2;
-      changed = true;
-    }
-    if (Keys.isDown("Minus")) {
-      this.gameState.bottomZ -= 0.2;
-      changed = true;
-    }
+    // if (Keys.isDown("Equal")) {
+    //   this.gameState.bottomZ += 0.2;
+    //   changed = true;
+    // }
+    // if (Keys.isDown("Minus")) {
+    //   this.gameState.bottomZ -= 0.2;
+    //   changed = true;
+    // }
     if (Keys.isDown("KeyQ")) {
       this.gameState.cameraHeight += 0.2;
       changed = true;
@@ -131,21 +158,37 @@ class RectGame {
     }
 
     if (changed) {
-      console.log("bottom Z:", this.gameState.bottomZ);
+      // console.log("bottom Z:", this.gameState.bottomZ);
       console.log("camera height:", this.gameState.cameraHeight);
     }
 
     return directionInput.normalize();
   }
 
-  private drawGameRect(rect: GameRect) {
-    this.context.fillStyle = rect.color.toHexStr();
-    let r = rect.r;
-    this.context.fillRect(r.x, r.y, r.w, r.h);
-  }
+  // private drawGameRect(rect: GameRect) {
+  //   this.context.fillStyle = rect.color.toHexStr();
+  //   let r = rect.r;
+  //   this.context.fillRect(r.x, r.y, r.w, r.h);
+  // }
 }
-
-
 
 const game = new RectGame();
 game.run();
+
+
+export function drawBgRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: Color,
+  z: number,
+  cameraHeight: number,
+  vpCenter: Vec2,
+  context: CanvasRenderingContext2D
+) {
+  context.fillStyle = color.toHexStr();
+  context.fillRect(x, y, w, h);
+  context.strokeStyle = Color.BLUE.toHexStr();
+  context.strokeRect(x, y, w, h);
+}

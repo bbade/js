@@ -11,6 +11,26 @@ export class Rect {
     w: number;
     h: number;
 
+    get x1(): number {
+        return this.x + this.w;
+    }
+
+    get y1(): number {
+        return this.y + this.h;
+    }
+
+    get x1y1(): Vec2 {
+        return new Vec2(this.x1, this.y1);
+    }
+
+    get p(): Vec2 {
+        return new Vec2(this.x, this.y);
+    }
+
+    get center(): Vec2 {
+        return new Vec2(this.x + this.w / 2, this.y + this.h / 2);
+    }
+
     constructor(x: number = 0, y: number = 0, w: number = 0, h: number = 0) {
         this.x = x;
         this.y = y;
@@ -34,34 +54,27 @@ export class Rect {
         // - r1 is entirely above r2 OR
         // - r1 is entirely below r2
         const noOverlap =
-          r1.x + r1.w <= r2.x || // r1 is left of r2
-          r1.x >= r2.x + r2.w || // r1 is right of r2
-          r1.y + r1.h <= r2.y || // r1 is above r2
-          r1.y >= r2.y + r2.h;   // r1 is below r2
+          r1.x1 < r2.x || // r1 is left of r2
+          r1.x > r2.x1 || // r1 is right of r2
+          r1.y > r2.y1 || // r1 is above r2
+          r1.y1 <  r2.y;   // r1 is below r2
+
+        // console.log("Rect 1:", r1.toString());
+        // console.log("Rect 2:", r2.toString());
+        // console.log("r1.x1 < r2.x:", r1.x1 < r2.x);
+        // console.log("r1.x > r2.x1:", r1.x > r2.x1);
+        // console.log("r1.y > r2.y1:", r1.y > r2.y1);
+        // console.log("r1.y1 < r2.y:", r1.y1 < r2.y);
       
         // If none of the non-overlap conditions are true, then they must intersect.
         return !noOverlap;
       }
 
-    get x1(): number {
-        return this.x + this.w;
-    }
+      intersects(that: Rect): boolean {
+        return Rect.intersects(this, that);
+      }
 
-    get y1(): number {
-        return this.y + this.h;
-    }
-
-    get x1y1(): Vec2 {
-        return new Vec2(this.x1, this.y1);
-    }
-
-    get p(): Vec2 {
-        return new Vec2(this.x, this.y);
-    }
-
-    get center(): Vec2 {
-        return new Vec2(this.x + this.w / 2, this.y + this.h / 2);
-    }
+   
 
     randomPoint(): Vec2 {
         const x = randomRange(this.x, this.x1);
@@ -76,16 +89,8 @@ export class Rect {
     toString(): string {
         return `Rect(x: ${this.x}, y: ${this.y}, w: ${this.w}, h: ${this.h})`;
     }
-}
 
-
-// TODO: unused, just an idea.
-// do we need this, or do we just apply transforms to rect? 
-class PointRect{
-    constructor(
-        public p0: Vec2,
-        public p1: Vec2,
-        public dx: number,
-        public dy: number,
-    )  {}
+    toJSON() {
+        return { x: this.x, y: this.y, w: this.w, h: this.h };
+     }
 }

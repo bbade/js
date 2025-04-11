@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-      "target": "es2017",        // Target ECMAScript version (ES6 is widely supported)
+      "target": "es2022",        // Target the newest stable ECMAScript version
       "module": "esnext",     // Use modern ES modules
       "outDir": "dist",      // Output compiled JavaScript to a 'dist' directory
       "rootDir": "src",       // Source files are in 'src'
