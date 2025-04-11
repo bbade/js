@@ -4,30 +4,6 @@ import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
 
-// export class BgRectStack {
-//   constructor(
-//     public topRect: GameRect,
-//     public bottomZ: number,
-//     public v: Vec2,
-//     public numRects: number = 10
-//   ) {}
-
-//   static getRects(stack: BgRectStack) {
-//     const rects: GameRect[] = [];
-//     for (let i = 0; i < stack.numRects; i++) {
-//       const z = stack.bottomZ - (i / stack.numRects) * stack.bottomZ;
-//       rects.push(
-//         getPerspectiveRect(
-//           stack.topRect,
-//           z,
-//           stack.bottomZ,
-//           stack.topRect.center
-//         )
-//       );
-//     }
-//     return rects;
-//   }
-// }
 
 export class BgRectStack2 {
   constructor(
@@ -38,7 +14,7 @@ export class BgRectStack2 {
     public v: Vec2
   ) {}
 
-  static getRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2) {
+  static getRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect[] {
     const rects: GameRect[] = [];
     for (let i = 0; i < stack.numRects; i++) {
       const z = stack.topZ + i * stack.zStep;
@@ -46,36 +22,13 @@ export class BgRectStack2 {
     }
     return rects;
   }
-}
 
-export function getStack(
-  stack: BgRectStack,
-  state: SceneState,
-  context: CanvasRenderingContext2D
-): GameRect[] {
-  const n = stack.numRects;
-  const bottomZ = stack.bottomZ;
-  const zStep = stack.bottomZ / (n - 1);
-  const windowCenter = state.viewportCenter;
-  const cameraHeight = state.cameraHeight;
-  const original = stack.topRect;
-
-  const rects: GameRect[] = [];
-
-  // draw back to front
-  for (let i = 0; i < n; i++) {
-    const z = bottomZ - i * zStep;
-    const gr: GameRect = getPerspectiveRect(
-      original,
-      z,
-      cameraHeight,
-      windowCenter
-    );
-    rects.push(gr);
+  static bottomRect(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect {
+    const z = stack.topZ + (stack.numRects - 1) * stack.zStep;
+    return getPerspectiveRect(stack.topRect, z, cameraHeight, vpCenter);
   }
-
-  return rects;
 }
+
 
 export function getPerspectiveRect(
   original: GameRect,

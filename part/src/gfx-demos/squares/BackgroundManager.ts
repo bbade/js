@@ -3,7 +3,7 @@ import { Rect } from "../../math/geometry/Rect";
 import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
-import { BgRectStack, getPerspectiveRect } from "./BgRectStack";
+import { BgRectStack2, getPerspectiveRect } from "./BgRectStack";
 
 export class BackgroundManager implements Updateable {
   sceneState: SceneState;
@@ -30,70 +30,58 @@ export class BackgroundManager implements Updateable {
 } // end backgroundmanager
 
 export class Background {
-  constructor(public stacks: BgRectStack[]) {}
-}
+  constructor(public stacks: BgRectStack2[]= []) {}
 
-type BgFun = (bounds: Rect) => Background;
+  // ========= region: static methods ==========
 
-export const BackgroundMaker = {
-  createBackground: (bounds: Rect): Background => {
-    const pat =  pattern0(bounds);
+  static  pattern0(bounds: Rect): Background 
+      {
+          return new Background([stackAt({
+              percentX: 0.2,
+              percentY: .2,
+              xsize: 0.1,
+              ysize: 0.1,
+              v: new Vec2(0.1, 0.1),
+              bounds: bounds,
+              numRects: 3,
+          })])
+  
+      } // end pattern0
 
-    const stack = pat.stacks[0];
-    BgRectStack.getRects(stack).forEach((r) => {
-        console.log(JSON.stringify(r));
-    });
+      static pattern1(bounds: Rect): Background {
+        const stacks = [0, 0.2, 0.4, 0.6, 0.8].flatMap((percent) => [
+            stackAt({
+                percentX: 0.33,
+                percentY: percent,
+                xsize: 0.1,
+                ysize: 0.1,
+                v: new Vec2(0.3, 0.3),
+                bounds: bounds,
+                numRects: 1,
+            }),
+            // stackAt({
+            //     percentX: 0.5,
+            //     percentY: percent,
+            //     xsize: 0.02,
+            //     ysize: 0.02,
+            //     v: new Vec2(0.3, 0.3),
+            //     bounds: bounds,
+            // }),
+            // stackAt({
+            //     percentX: 0.66,
+            //     percentY: percent,
+            //     xsize: 0.1,
+            //     ysize: 0.1,
+            //     v: new Vec2(0.3, 0.3),
+            //     bounds: bounds,
+            // }),
+        ]);
+    
+        return new Background(stacks);
+    
+    } // end pattern1
+} // end class Background
 
-    return pat;
-  },
-};
-
-function pattern0(bounds: Rect): Background 
-    {
-        return new Background([stackAt({
-            percentX: 0.2,
-            percentY: .2,
-            xsize: 0.1,
-            ysize: 0.1,
-            v: new Vec2(0.1, 0.1),
-            bounds: bounds,
-            numRects: 3,
-        })])
-
-    }
-
-function pattern1(bounds: Rect): Background {
-    const stacks = [0, 0.2, 0.4, 0.6, 0.8].flatMap((percent) => [
-        stackAt({
-            percentX: 0.33,
-            percentY: percent,
-            xsize: 0.1,
-            ysize: 0.1,
-            v: new Vec2(0.3, 0.3),
-            bounds: bounds,
-            numRects: 1,
-        }),
-        // stackAt({
-        //     percentX: 0.5,
-        //     percentY: percent,
-        //     xsize: 0.02,
-        //     ysize: 0.02,
-        //     v: new Vec2(0.3, 0.3),
-        //     bounds: bounds,
-        // }),
-        // stackAt({
-        //     percentX: 0.66,
-        //     percentY: percent,
-        //     xsize: 0.1,
-        //     ysize: 0.1,
-        //     v: new Vec2(0.3, 0.3),
-        //     bounds: bounds,
-        // }),
-    ]);
-
-    return new Background(stacks);
-
-}
 
 
 function stackAt(
@@ -106,12 +94,13 @@ function stackAt(
         bounds: Rect;
         numRects: number;
     }
-): BgRectStack {
+): BgRectStack2 {
     const centerX = a.bounds.x + a.percentX * a.bounds.w;
     const centerY = a.bounds.y + a.percentY * a.bounds.h;
     return {
         topRect: new GameRect(new Vec2(centerX, centerY), a.xsize, a.ysize, Color.RED, 0),
-        bottomZ: 10,
+        topZ: 0,
+        zStep: 1,
         v: a.v,
         numRects: a.numRects, // Default size value
     };
@@ -120,16 +109,11 @@ function stackAt(
 
 function isStackOutOfBounds(
   bounds: Rect,
-  stack: BgRectStack,
+  stack: BgRectStack2,
   state: SceneState
 ): boolean {
   const top = stack.topRect;
-  const bottom = getPerspectiveRect(
-    top,
-    stack.bottomZ,
-    state.cameraHeight,
-    state.viewportCenter
-  );
+  const bottom = BgRectStack2.bottomRect(stack, state.cameraHeight, state.viewportCenter);
 
   const topRect = GameRect.toRect(top);
   const bottomRect = GameRect.toRect(bottom);

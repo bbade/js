@@ -1,4 +1,4 @@
-import { BgRectStack, getPerspectiveRect, projectRect } from "../gfx-demos/squares/BgRectStack";
+import { BgRectStack2, getPerspectiveRect, projectRect } from "../gfx-demos/squares/BgRectStack";
 import { GameRect } from "../gfx-demos/squares/GameRect";
 import { Rect } from "../math/geometry/Rect";
 import { Vec2 } from "../math/vec2";
@@ -67,24 +67,37 @@ function testGameRect(): boolean {
 }
 
 function testStackSize1(): boolean {
-  const topRect = new GameRect(new Vec2(-0.25, 0.5), 0.5, 0.5, new Color(255, 0, 0), 0);
-  const bottomZ = 0;
+
+  // stack params
+  const x = 0;
+  const y = 0;
+  const w = 1;
+  const h = 1;
+  const topZ = 0;
+  const zStep = 1;
+  const numRects = 1;
+  const velocity = new Vec2(0, 0);;
+
+  const r = new Rect(x, y, w, h);
+  const topRect = GameRect.fromRect(r, new Color(255, 0, 0), topZ);
+
+  // renderer
   const cameraHeight = 1;
   const vpCenter = new Vec2(0, 0);
 
-  const stack = new BgRectStack(topRect, bottomZ, new Vec2(0, 0), 1);
-  const rectStack = BgRectStack.getRects(stack);
+  // test
+  const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
+  const gameRects: GameRect[] = BgRectStack2.getRects(stack, cameraHeight, vpCenter);
 
-  console.log("rectStack contents:", rectStack);
 
-  if (rectStack.length !== 1) {
-    console.error(`❌ Test failed: Expected stack size of 1, but got ${rectStack.length}`);
+  if (gameRects.length !== 1) {
+    console.error(`❌ Test failed: Expected stack size of 1, but got ${gameRects.length}`);
     return false;
   }
 
-  const expectedRect = getPerspectiveRect(topRect, bottomZ, cameraHeight, vpCenter);
+  const expectedRect = topRect;
 
-  const actualRect = GameRect.toRect(rectStack[0]);
+  const actualRect = GameRect.toRect(gameRects[0]);
   const expectedR = GameRect.toRect(expectedRect);
 
   if (
@@ -100,6 +113,50 @@ function testStackSize1(): boolean {
   }
 
   console.log("✅ Test passed for testStackSize1!");
+  return true;
+}
+
+
+function testStackSize2(): boolean {
+
+  // stack params
+  const x = 0;
+  const y = 0;
+  const w = 1;
+  const h = 1;
+  const topZ = 0;
+  const zStep = 1;
+  const numRects = 2;
+  const velocity = new Vec2(0, 0);;
+
+  const topR = new Rect(x, y, w, h);
+  const topRect = GameRect.fromRect(topR, new Color(255, 0, 0), topZ);
+
+  // renderer
+  const cameraHeight = 1;
+  const vpCenter = new Vec2(0, 0);
+
+  // test
+  const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
+  const gameRects: GameRect[] = BgRectStack2.getRects(stack, cameraHeight, vpCenter);
+
+
+  if (gameRects.length !== 2) {
+    console.error(`❌ Test failed: Expected stack size of 1, but got ${gameRects.length}`);
+    return false;
+  }
+
+
+  const actualTopRect = GameRect.toRect(gameRects[0]);
+  const actualBottomRect = GameRect.toRect(gameRects[1]);
+
+  const expectedTopR = topR;
+  const expectedBottomRect = new Rect(0, 0, .5, .5);
+
+  assertRectsEqual(expectedTopR, actualTopRect, "testStackSize2 top rect");
+  assertRectsEqual(expectedBottomRect, actualBottomRect, "testStackSize2 bottom rect");
+
+  console.log("✅ Test passed for testStackSize2!");
   return true;
 }
 
@@ -153,6 +210,7 @@ export function runTestBgRectStack() {
 
   // runTest(testGetPerspectiveRect);
   runTest(testStackSize1);
+  runTest(testStackSize2);
   runTest(testGameRect);
   runTest(testProjectRect_z0);
   runTest(testProjectRect_z1);

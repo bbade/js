@@ -6,13 +6,9 @@ import {
 import { Keys } from "../../engine/Keys";
 import { Rect } from "../../math/geometry/Rect";
 import { scale, Vec2 } from "../../math/vec2";
-import {
-  Background,
-  BackgroundMaker,
-  BackgroundManager,
-} from "./BackgroundManager";
-import {  GameRect } from "./GameRect";
-import { BgRectStack } from "./BgRectStack";
+import { Background, BackgroundManager } from "./BackgroundManager";
+import { GameRect } from "./GameRect";
+import { BgRectStack2 } from "./BgRectStack";
 
 const K = {
   lineWidth: 0.001,
@@ -29,13 +25,14 @@ export interface SceneState {
 }
 
 function makeInitialState(normalizedCanvasSize: Vec2): SceneState {
+  const bounds = new Rect(0, 0, normalizedCanvasSize.x, normalizedCanvasSize.y);
+  const vpCenter = scale(normalizedCanvasSize, 0.5);
+
   return {
     cameraHeight: K.initialCameraHeight,
-    background: BackgroundMaker.createBackground(
-      Rect.fromV2(new Vec2(), normalizedCanvasSize)
-    ),
-    viewportCenter: scale(normalizedCanvasSize, 0.5),
-    bounds: new Rect(0, 0, normalizedCanvasSize.x, normalizedCanvasSize.y),
+    background: Background.pattern0(bounds),
+    viewportCenter: vpCenter,
+    bounds: bounds,
     normalizedCanvasSize: normalizedCanvasSize,
   };
 }
@@ -57,9 +54,8 @@ class RectGame {
     this.context.translate(0, -1);
 
     // Initialize game state
-    this.gameState = makeInitialState(
-      new Vec2(this.canvas.width / this.canvas.height, 1)
-    );
+    const bounds = new Vec2(this.canvas.width / this.canvas.height, 1);
+    this.gameState = makeInitialState(bounds);
     this.backgroundManager = new BackgroundManager(this.gameState);
 
     Keys.init(); // Initialize key handling
@@ -95,9 +91,13 @@ class RectGame {
 
     const zOrderedRects: GameRect[] = [];
     this.gameState.background.stacks.forEach((stack) => {
-      const rects = BgRectStack.getRects(stack);
+      const rects = BgRectStack2.getRects(
+        stack,
+        this.gameState.cameraHeight,
+        this.gameState.viewportCenter
+      );
       rects.forEach((rect) => {
-        zOrderedRects.push(rect);   
+        zOrderedRects.push(rect);
       });
     });
 
@@ -105,7 +105,6 @@ class RectGame {
 
     zOrderedRects.forEach((rect: GameRect) => {
       const r = GameRect.toRect(rect);
-
 
       drawBgRect(
         r.x,
@@ -118,8 +117,8 @@ class RectGame {
         this.gameState.viewportCenter,
         this.context
       );
-    });
-  }
+    }); // end for-each-zordered-rect
+  } // end draw()
 
   private checkInput(): Vec2 {
     let changed = false;
@@ -174,7 +173,6 @@ class RectGame {
 
 const game = new RectGame();
 game.run();
-
 
 export function drawBgRect(
   x: number,
