@@ -6,13 +6,28 @@ import { GameRect } from "./GameRect";
 
 
 export class BgRectStack2 {
+
+  public metadata = {}; // any type
+
   constructor(
     public topRect: GameRect,
     public topZ: number,
     public zStep: number,
     public numRects: number = 10,
-    public v: Vec2
+    public v: Vec2,
+    public ageMs: number = 0,
   ) {}
+
+  copy(): BgRectStack2 {
+    return new BgRectStack2(
+      GameRect.copy(this.topRect),
+      this.topZ,
+      this.zStep,
+      this.numRects,
+      this.v.copy(),
+      this.ageMs,
+    );
+  }
 
   static getRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect[] {
     const rects: GameRect[] = [];

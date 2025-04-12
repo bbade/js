@@ -7,6 +7,10 @@ export class Vec2 {
         this.y = y;
     }
 
+    static from(v: {x: number, y: number}): Vec2 {
+        return new Vec2(v.x, v.y);
+    }
+
     equals(other: Vec2): boolean {
         return this.x === other.x && this.y === other.y;
     }

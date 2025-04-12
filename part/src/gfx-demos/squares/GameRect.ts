@@ -13,6 +13,16 @@ export class GameRect {
     public z: number
   ) {}
 
+  static copy(gr: GameRect): GameRect {
+    return new GameRect(
+      new Vec2(gr.center.x, gr.center.y),
+      gr.xsize,
+      gr.ysize,
+      gr.color,
+      gr.z
+    );
+  }
+
   static from(args: {
     center: Vec2;
     xsize: number;

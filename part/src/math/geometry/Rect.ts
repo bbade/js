@@ -46,6 +46,12 @@ export class Rect {
         return new Rect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
     }
 
+    static fromV2wh(p0: Vec2, w: number, h: number): Rect {
+        return new Rect(p0.x, p0.y, w, h);
+    }
+
+    
+
     static intersects(r1: Rect, r2: Rect): boolean {
         // Check for non-intersection conditions.
         // They DON'T intersect if:

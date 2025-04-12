@@ -42,6 +42,18 @@ export function assertFalse(value: boolean, message: string): boolean {
     }
 }
 
+export function assertBoolean(expected: boolean, actual: boolean, message: string): boolean {
+    if (expected === actual) {
+        console.log(`✅ Success: ${message}`);
+        return true;
+    } else {
+        console.error(`❌ Failure: ${message}`);
+        console.error(`   Expected: ${expected}`);
+        console.error(`   Actual: ${actual}`);
+        return false;
+    }
+}
+
 export function assertSortaEquals(a: number, b: number, message: string, quiet: boolean = true): boolean {
     const equals = sortaEqual(a, b);
 

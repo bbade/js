@@ -4,18 +4,30 @@ import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
 import { BgRectStack2, getPerspectiveRect } from "./BgRectStack";
+import { RectSpawner } from "./RectSpawner";
 
-export class BackgroundManager implements Updateable {
+export class BackgroundManager implements Updateable 
+{
   sceneState: SceneState;
-  constructor(sceneState: SceneState) {
+  private readonly rectSpawner: RectSpawner | null = null;
+
+  constructor(
+    sceneState: SceneState,
+    rectSpawner: RectSpawner| null = null // not used yet
+  ) {
     this.sceneState = sceneState;
   }
 
   update(deltaMs: number): void {
+
+    
+
+
     this.sceneState.background.stacks.forEach((stack) => {
       // update the stack position
       const deltaPos = stack.v.copy().scale(deltaMs / 1000);
       stack.topRect.center = stack.topRect.center.copy().add(deltaPos);
+      stack.ageMs += deltaMs;
 
       // console.log("stack.v:", stack.v);
       // console.log("deltaMs:", deltaMs);
@@ -49,7 +61,17 @@ export class Background {
       } // end pattern0
 
       static pattern1(bounds: Rect): Background {
+        const numRects = 8;
         const stacks = [0, 0.2, 0.4, 0.6, 0.8].flatMap((percent) => [
+          stackAt({
+            percentX: 0.1,
+            percentY: percent,
+            xsize: 0.1,
+            ysize: 0.1,
+            v: new Vec2(0.3, 0.3),
+            bounds: bounds,
+            numRects: numRects,
+        }),
             stackAt({
                 percentX: 0.33,
                 percentY: percent,
@@ -57,24 +79,37 @@ export class Background {
                 ysize: 0.1,
                 v: new Vec2(0.3, 0.3),
                 bounds: bounds,
-                numRects: 1,
+                numRects: numRects,
             }),
-            // stackAt({
-            //     percentX: 0.5,
-            //     percentY: percent,
-            //     xsize: 0.02,
-            //     ysize: 0.02,
-            //     v: new Vec2(0.3, 0.3),
-            //     bounds: bounds,
-            // }),
-            // stackAt({
-            //     percentX: 0.66,
-            //     percentY: percent,
-            //     xsize: 0.1,
-            //     ysize: 0.1,
-            //     v: new Vec2(0.3, 0.3),
-            //     bounds: bounds,
-            // }),
+            stackAt({
+                percentX: 0.5,
+                percentY: percent,
+                xsize: 0.02,
+                ysize: 0.02,
+                v: new Vec2(0.3, 0.3),
+                bounds: bounds,
+                numRects: numRects,
+
+            }),
+            stackAt({
+                percentX: 0.66,
+                percentY: percent,
+                xsize: 0.1,
+                ysize: 0.1,
+                v: new Vec2(0.3, 0.3),
+                bounds: bounds,
+                numRects: numRects,
+
+            }),
+            stackAt({
+              percentX: 0.99,
+              percentY: percent,
+              xsize: 0.1,
+              ysize: 0.1,
+              v: new Vec2(0.3, 0.3),
+              bounds: bounds,
+              numRects: numRects,
+          }),
         ]);
     
         return new Background(stacks);
@@ -121,3 +156,4 @@ function isStackOutOfBounds(
     Rect.intersects(topRect, bounds) || Rect.intersects(bottomRect, bounds);
   return !eitherInBounds;
 }
+

@@ -30,7 +30,7 @@ function makeInitialState(normalizedCanvasSize: Vec2): SceneState {
 
   return {
     cameraHeight: K.initialCameraHeight,
-    background: Background.pattern0(bounds),
+    background: Background.pattern1(bounds),
     viewportCenter: vpCenter,
     bounds: bounds,
     normalizedCanvasSize: normalizedCanvasSize,
