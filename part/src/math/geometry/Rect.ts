@@ -1,5 +1,6 @@
 import { randomRange } from "../math";
 import { Vec2 } from "../vec2";
+import { Ray2 } from "./Ray";
 
 
 /**
@@ -31,6 +32,11 @@ export class Rect {
         return new Vec2(this.x + this.w / 2, this.y + this.h / 2);
     }
 
+    translate(v: Vec2) {
+        this.x += v.x;
+        this.y += v.y;
+    }
+
     constructor(x: number = 0, y: number = 0, w: number = 0, h: number = 0) {
         this.x = x;
         this.y = y;
@@ -48,6 +54,10 @@ export class Rect {
 
     static fromV2wh(p0: Vec2, w: number, h: number): Rect {
         return new Rect(p0.x, p0.y, w, h);
+    }
+
+    static fromCenter(c: Vec2, w: number, h: number): Rect {
+        return new Rect(c.x - w / 2, c.y - h / 2, w, h);
     }
 
     
@@ -99,4 +109,25 @@ export class Rect {
     toJSON() {
         return { x: this.x, y: this.y, w: this.w, h: this.h };
      }
+}
+
+
+export class RectUtils  {
+
+    static expand(rect: Rect, w: number, h: number): Rect { 
+        const c = rect.center;
+        const newW = rect.w + w;
+        const newH = rect.h + h;
+
+        return Rect.fromCenter(c, newW, newH);
+    }
+
+    static willIntersect(r1: Rect, r1Velocity: Vec2,  r2: Rect): boolean {
+        // convert r1 to a ray, expand r2 by r1's size
+
+        const ray = new Ray2(r1.p, r1Velocity);
+        const r2Expanded = RectUtils.expand(r2, r1.w, r1.h);
+
+        return ray.intersectsRect(r2Expanded);
+    }
 }

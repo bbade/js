@@ -6,7 +6,7 @@ import {
 import { Keys } from "../../engine/Keys";
 import { Rect } from "../../math/geometry/Rect";
 import { scale, Vec2 } from "../../math/vec2";
-import { Background, BackgroundManager } from "./BackgroundManager";
+import { Background, BackgroundManager, RectSpawner1 } from "./BackgroundManager";
 import { GameRect } from "./GameRect";
 import { BgRectStack2 } from "./BgRectStack";
 
@@ -30,7 +30,7 @@ function makeInitialState(normalizedCanvasSize: Vec2): SceneState {
 
   return {
     cameraHeight: K.initialCameraHeight,
-    background: Background.pattern1(bounds),
+    background: new Background(),
     viewportCenter: vpCenter,
     bounds: bounds,
     normalizedCanvasSize: normalizedCanvasSize,
@@ -56,7 +56,7 @@ class RectGame {
     // Initialize game state
     const bounds = new Vec2(this.canvas.width / this.canvas.height, 1);
     this.gameState = makeInitialState(bounds);
-    this.backgroundManager = new BackgroundManager(this.gameState);
+    this.backgroundManager = new BackgroundManager(this.gameState, RectSpawner1(this.gameState.bounds));
 
     Keys.init(); // Initialize key handling
   }

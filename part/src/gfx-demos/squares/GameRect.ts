@@ -5,13 +5,39 @@ import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 
 export class GameRect {
+
+  public readonly r: Rect;
+
   constructor(
-    public center: Vec2,
-    public xsize: number,
-    public ysize: number,
+     center: Vec2,
+     xsize: number,
+     ysize: number,
     public color: Color,
     public z: number
-  ) {}
+  ) {
+    this.r = new Rect(center.x - xsize / 2, center.y - ysize / 2, xsize, ysize);
+  }
+
+  get center(): Vec2 {
+    return new Vec2(this.r.x + this.r.w / 2, this.r.y + this.r.h / 2);
+  }
+
+  get p(): Vec2 {
+    return new Vec2(this.r.x, this.r.y);
+  } 
+
+  set center(newCenter: Vec2) {
+    this.r.x = newCenter.x - this.r.w / 2;
+    this.r.y = newCenter.y - this.r.h / 2;
+  }
+
+  get xsize(): number {
+    return this.r.w;
+  }
+
+  get ysize(): number {
+    return this.r.h;
+  }
 
   static copy(gr: GameRect): GameRect {
     return new GameRect(

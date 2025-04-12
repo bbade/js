@@ -18,6 +18,24 @@ export class BgRectStack2 {
     public ageMs: number = 0,
   ) {}
 
+  static fromObject(params: {
+    topRect: GameRect;
+    topZ: number;
+    zStep: number;
+    numRects?: number;
+    v: Vec2;
+    ageMs?: number;
+  }): BgRectStack2 {
+    return new BgRectStack2(
+      params.topRect,
+      params.topZ,
+      params.zStep,
+      params.numRects ?? 10,
+      params.v,
+      params.ageMs ?? 0
+    );
+  }
+
   copy(): BgRectStack2 {
     return new BgRectStack2(
       GameRect.copy(this.topRect),
