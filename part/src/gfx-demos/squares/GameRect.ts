@@ -2,12 +2,12 @@ import { Color, scaleBrightness } from "../../Color";
 import { Rect } from "../../math/geometry/Rect";
 import { clamp } from "../../math/math";
 import { Vec2 } from "../../math/vec2";
+import { ScalarAnimation } from "./Animations";
 import { SceneState } from "./RectGameIndex";
 
 export class GameRect implements Updateable {
 
   public readonly r: Rect;
-  rotateAnimation: ScalarAnimation | null = null;
 
   constructor(
      center: Vec2,
@@ -17,6 +17,7 @@ export class GameRect implements Updateable {
     public z: number,
     public v: Vec2,
     public ageMs: number = 0,
+    public rotateAnimation: ScalarAnimation | null = null,
   ) {
     this.r = new Rect(center.x - xsize / 2, center.y - ysize / 2, xsize, ysize);
   }
@@ -48,6 +49,9 @@ export class GameRect implements Updateable {
 
   get rotation(): number {
     const animation = this.rotateAnimation;
+
+    // console.log(`Animation: ${animation ? animation.getValue(this.ageMs) : 'None'}`);
+    
     if (animation) {
       return animation.getValue(this.ageMs);
     } else {
@@ -63,7 +67,8 @@ export class GameRect implements Updateable {
       gr.color,
       gr.z,
       gr.v.copy(),
-      gr.ageMs
+      gr.ageMs,
+      gr.rotateAnimation,
     );
   }
 

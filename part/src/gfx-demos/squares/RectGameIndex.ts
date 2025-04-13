@@ -242,15 +242,15 @@ export function drawBgRectTransformed(
   const r = projectRect(gameRect.r, gameRect.z, cameraHeight, vpCenter);
 
   context.save();
-  // context.translate(gameRect.center.x, gameRect.center.y);
-  // context.rotate(gameRect.rotation);
+  context.translate(r.x, r.y);
+  context.rotate(gameRect.rotation);
 
   const color = colorForRect(gameRect.color, cameraHeight, gameRect.z);
 
   context.fillStyle = color.toHexStr();
-  context.fillRect(r.x, r.y, r.w, r.h);
+  context.fillRect(0, 0, r.w, r.h);
   context.strokeStyle = Color.BLUE.toHexStr();
-  context.strokeRect(r.x, r.y, r.w, r.h);
+  context.strokeRect(0,0, r.w, r.h);
 
   context.restore();
 }

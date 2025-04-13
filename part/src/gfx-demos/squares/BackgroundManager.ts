@@ -5,6 +5,7 @@ import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
 import { BgRectStack2, getPerspectiveRect, projectRect } from "./BgRectStack";
 import { RectSpawner } from "./RectSpawner";
+import { slowRotateAnimation } from "./Animations";
 
 export class BackgroundManager implements Updateable {
   sceneState: SceneState;
@@ -334,7 +335,7 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
 
 export function RectSpawner3(bounds: Rect) : RectSpawner {
 
-  const stacks = [] as GameRect[];
+  const stack = [] as GameRect[];
   const numRects = 10;
   const zStep = 0.1;
   const topZ = 0;
@@ -352,8 +353,11 @@ export function RectSpawner3(bounds: Rect) : RectSpawner {
     numRects: numRects,
   });
 
-  stacks.push(...centerStack.allRects());
+  stack.push(...centerStack.allRects());
+  stack.forEach((rect: GameRect, i: number) => {
+    rect.rotateAnimation = slowRotateAnimation(100*i)
+  });
 
-  return new RectSpawner(stacks, 800000);
+  return new RectSpawner(stack, 800000);
 
 }
