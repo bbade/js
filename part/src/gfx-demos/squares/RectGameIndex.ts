@@ -11,6 +11,7 @@ import {
   BackgroundManager,
   RectSpawner1,
   RectSpawner2,
+  RectSpawner3,
 } from "./BackgroundManager";
 import { GameRect } from "./GameRect";
 import { BgRectStack2, colorForRect, projectRect } from "./BgRectStack";
@@ -63,9 +64,9 @@ class RectGame {
     // Initialize game state
     const bounds = new Vec2(this.canvas.width / this.canvas.height, 1);
     this.gameState = makeInitialState(bounds);
-    this.gameState.background = Background.pattern1(this.gameState.bounds);
+    // this.gameState.background = Background.pattern1(this.gameState.bounds);
     this.backgroundManager = new BackgroundManager(
-      this.gameState /*RectSpawner2(this.gameState.bounds)*/
+      this.gameState , RectSpawner3(this.gameState.bounds)
     );
 
     Keys.init(); // Initialize key handling
@@ -95,7 +96,7 @@ class RectGame {
     this.draw();
   }
 
-  debugRect = new GameRect(new Vec2(0, 0), 0.2, 0.2, Color.MAGENTA, 0);
+  debugRect = new GameRect(new Vec2(0, 0), 0.2, 0.2, Color.MAGENTA, 0, new Vec2());
 
   draw() {
     this.context.fillStyle = K.canvasBgColor.toHexStr();
@@ -130,30 +131,30 @@ class RectGame {
       );
     }); // end for-each-zordered-rect
 
-    const dr2 = this.debugRect.copy();
-    dr2.color = Color.YELLOW;
-    dr2.center = this.gameState.viewportCenter.copy();
+    // const dr2 = this.debugRect.copy();
+    // dr2.color = Color.YELLOW;
+    // dr2.center = this.gameState.viewportCenter.copy();
 
-    const dr3 = this.debugRect.copy();
-    dr3.center = this.gameState.bounds.x1y1.copy();
-    dr3.color = Color.GRAY;
+    // const dr3 = this.debugRect.copy();
+    // dr3.center = this.gameState.bounds.x1y1.copy();
+    // dr3.color = Color.GRAY;
 
-    [this.debugRect, dr2, dr3].forEach((debugRect) => {
-      drawBgRectTransformed(
-        debugRect,
-        this.gameState.cameraHeight,
-        this.gameState.viewportCenter,
-        this.context
-      );
+    // [this.debugRect, dr2, dr3].forEach((debugRect) => {
+    //   drawBgRectTransformed(
+    //     debugRect,
+    //     this.gameState.cameraHeight,
+    //     this.gameState.viewportCenter,
+    //     this.context
+    //   );
 
-      // this.context.fillStyle = Color.CYAN.toHexStr();
-      // this.context.fillRect(
-      //   debugRect.r.x,
-      //   debugRect.r.y,
-      //   debugRect.r.w,
-      //   debugRect.r.h
-      // );
-    });
+    //   // this.context.fillStyle = Color.CYAN.toHexStr();
+    //   // this.context.fillRect(
+    //   //   debugRect.r.x,
+    //   //   debugRect.r.y,
+    //   //   debugRect.r.w,
+    //   //   debugRect.r.h
+    //   // );
+    // });
 
     drawDebugCircles(this.gameState.bounds, this.context);
 

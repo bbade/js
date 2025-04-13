@@ -15,7 +15,7 @@ export class GameRect implements Updateable {
      ysize: number,
     public color: Color,
     public z: number,
-    public v: Vec2 = new Vec2(0, 0),
+    public v: Vec2,
     public ageMs: number = 0,
   ) {
     this.r = new Rect(center.x - xsize / 2, center.y - ysize / 2, xsize, ysize);
@@ -73,23 +73,27 @@ export class GameRect implements Updateable {
     ysize: number;
     color: Color;
     z: number;
+    v: Vec2;
   }): GameRect {
     return new GameRect(
       args.center,
       args.xsize,
       args.ysize,
       args.color,
-      args.z
+      args.z,
+      args.v,
     );
   }
 
-  static fromRect(r: Rect, color: Color, z: number): GameRect {
+  static fromRect(r: Rect, color: Color, z: number, v: Vec2, ageMs: number = 0): GameRect {
     return new GameRect(
       new Vec2(r.x + r.w / 2, r.y + r.h / 2),
       r.w,
       r.h,
       color,
-      z
+      z,
+      v,
+      ageMs,
     );
   }
 
@@ -103,7 +107,11 @@ export class GameRect implements Updateable {
   }
 
    update(deltaMs: number): void {
+    const deltaPos = this.v.copy().scale(deltaMs / 1000);
+    this.center = this.center.add(deltaPos);
     this.ageMs += deltaMs;
+
+    // console.log(`center: ${this.center}, v: ${this.v}, z: ${this.z}, deltaMs: ${deltaMs}`);
   }
 
 }

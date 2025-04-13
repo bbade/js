@@ -19,10 +19,12 @@ export class BackgroundManager implements Updateable {
   }
 
   update(deltaMs: number): void {
+    console.log(`Managing ${this.sceneState.background.rects.length} rects.`);
+
     // update position and age
     this.sceneState.background.rects.forEach((rect: GameRect) => {
       // console.log(`Rect: ${rect.r.toString()}, Timestamp: ${rect.ageMs}`);
-      BackgroundManager.updateRect(deltaMs, rect);
+      rect.update(deltaMs);
     }); // end for-each
 
     // prune
@@ -51,9 +53,7 @@ export class BackgroundManager implements Updateable {
   } // end update
 
   private static updateRect(deltaMs: number, rect: GameRect): void {
-    const deltaPos = rect.v.copy().scale(deltaMs / 1000);
-    rect.center.add(deltaPos);
-    rect.ageMs += deltaMs;
+    
   }
 
   private static pruneRects(
@@ -79,7 +79,7 @@ export class BackgroundManager implements Updateable {
       return !shouldRemove; // todo, this logic is buggy
     }
 
-    return rects.filter(shouldKeep);
+    return rects// .filter(shouldKeep); // TODO TODO TODO UNCOMMENT
   }
 } // end backgroundmanager
 
@@ -92,7 +92,7 @@ export class Background {
     return new Background([
       new GameRect(
         new Vec2( bounds.w / 4, bounds.h / 4),
-        .1, .1, Color.RED, 0
+        .1, .1, Color.RED, 0, new Vec2()
       )
     ]);
   } // end pattern0
@@ -168,10 +168,10 @@ function stackAt(a: {
       a.xsize,
       a.ysize,
       Color.RED,
-      0
+      0,
+      a.v,
     ),
     zStep: 1,
-    v: a.v,
     numRects: a.numRects, // Default size value
   }).allRects();
 }
@@ -302,10 +302,9 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
   const buildingRect = Rect.fromV2wh(buildingStart, buildingSize, buildingSize);
 
   const streetStack = BgRectStack2.fromObject({
-    topRect: GameRect.fromRect(street, Color.GRAY, streetLevel),
+    topRect: GameRect.fromRect(street, Color.GRAY, streetLevel, v),
     zStep: 1, // only one layer, doesn't matter
     numRects: 1,
-    v: v,
   });
 
   stacks.push(...(streetStack.allRects()));
@@ -317,10 +316,9 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
       const offset = new Vec2(tx, ty);
       const topRect: Rect = buildingRect.copy().translate(offset);
       const buildingStack = BgRectStack2.fromObject({
-      topRect: GameRect.fromRect(topRect, Color.RED, 0),
+      topRect: GameRect.fromRect(topRect, Color.RED, 0, v),
       zStep: zStep,
       numRects: numRects,
-      v: v,
     });
 
     stacks.push(...buildingStack.allRects());
@@ -329,5 +327,33 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
 
 
   return new RectSpawner(stacks, 8000);
+
+}
+
+
+
+export function RectSpawner3(bounds: Rect) : RectSpawner {
+
+  const stacks = [] as GameRect[];
+  const numRects = 10;
+  const zStep = 0.1;
+  const topZ = 0;
+  const v = new Vec2(0, 0.1);
+
+  const center = new Vec2(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
+  const size = Math.min(bounds.w, bounds.h) * 0.2;
+
+  const centerRect = Rect.fromV2wh(center, size, size);
+  const topRect =  GameRect.fromRect(centerRect, Color.MAGENTA, topZ, v)
+
+  const centerStack = BgRectStack2.fromObject({
+    topRect: topRect,
+    zStep: zStep,
+    numRects: numRects,
+  });
+
+  stacks.push(...centerStack.allRects());
+
+  return new RectSpawner(stacks, 800000);
 
 }

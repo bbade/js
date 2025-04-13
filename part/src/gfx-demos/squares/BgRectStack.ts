@@ -24,8 +24,6 @@ export class BgRectStack2 {
     topRect: GameRect;
     zStep: number;
     numRects?: number;
-    v: Vec2;
-    ageMs?: number;
   }): BgRectStack2 {
     return new BgRectStack2(
       params.topRect,
@@ -43,6 +41,7 @@ export class BgRectStack2 {
   }
 
   allRects(): GameRect[] {
+    console.log("topRect's v:", this.topRect.v);
     const rects: GameRect[] = [];
     for (let i = 0; i < this.numRects; i++) {
       const r = this.topRect.copy();
@@ -50,6 +49,11 @@ export class BgRectStack2 {
       r.z = z;
       rects.push(r);
     }
+
+
+    rects.forEach(rect => {
+      console.log(JSON.stringify(rect));
+    });
     return rects;
   }
 
@@ -84,7 +88,7 @@ export function getPerspectiveRect(
   );
 
   const color = colorForRect(original.color, cameraHeight, rectZ);
-  return GameRect.fromRect(projectedRect, color, rectZ);
+  return GameRect.fromRect(projectedRect, color, rectZ, original.v);
 }
 
 // export function projectGameRect(
