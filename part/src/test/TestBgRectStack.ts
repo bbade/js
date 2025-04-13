@@ -37,7 +37,7 @@ import { assertRectsEqual } from "./TestUtils";
 // }
 
 function rect(gameRect: GameRect): Rect {
-  return GameRect.toRect(gameRect);
+  return GameRect.toRect_deprecated(gameRect);
 }
 
 function testGameRect(): boolean {
@@ -87,7 +87,7 @@ function testStackSize1(): boolean {
 
   // test
   const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
-  const gameRects: GameRect[] = BgRectStack2.getRects(stack, cameraHeight, vpCenter);
+  const gameRects: GameRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
 
 
   if (gameRects.length !== 1) {
@@ -97,8 +97,8 @@ function testStackSize1(): boolean {
 
   const expectedRect = topRect;
 
-  const actualRect = GameRect.toRect(gameRects[0]);
-  const expectedR = GameRect.toRect(expectedRect);
+  const actualRect = GameRect.toRect_deprecated(gameRects[0]);
+  const expectedR = GameRect.toRect_deprecated(expectedRect);
 
   if (
     actualRect.x !== expectedR.x ||
@@ -138,7 +138,7 @@ function testStackSize2(): boolean {
 
   // test
   const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
-  const gameRects: GameRect[] = BgRectStack2.getRects(stack, cameraHeight, vpCenter);
+  const gameRects: GameRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
 
 
   if (gameRects.length !== 2) {
@@ -147,8 +147,8 @@ function testStackSize2(): boolean {
   }
 
 
-  const actualTopRect = GameRect.toRect(gameRects[0]);
-  const actualBottomRect = GameRect.toRect(gameRects[1]);
+  const actualTopRect = GameRect.toRect_deprecated(gameRects[0]);
+  const actualBottomRect = GameRect.toRect_deprecated(gameRects[1]);
 
   const expectedTopR = topR;
   const expectedBottomRect = new Rect(0, 0, .5, .5);

@@ -3,7 +3,7 @@ import { Rect, RectUtils } from "../../math/geometry/Rect";
 import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
-import { BgRectStack2, getPerspectiveRect } from "./BgRectStack";
+import { BgRectStack2, getPerspectiveRect, projectRect } from "./BgRectStack";
 import { RectSpawner } from "./RectSpawner";
 
 export class BackgroundManager implements Updateable {
@@ -20,77 +20,80 @@ export class BackgroundManager implements Updateable {
 
   update(deltaMs: number): void {
     // update position and age
-    this.sceneState.background.stacks.forEach((stack) => {
-      BackgroundManager.updateStack(deltaMs, stack);
+    this.sceneState.background.rects.forEach((rect: GameRect) => {
+      // console.log(`Rect: ${rect.r.toString()}, Timestamp: ${rect.ageMs}`);
+      BackgroundManager.updateRect(deltaMs, rect);
     }); // end for-each
 
     // prune
-    const updatedStacks = BackgroundManager.pruneStacks(
-      this.sceneState.background.stacks,
+    const updatedRects = BackgroundManager.pruneRects(
+      this.sceneState.background.rects,
       this.sceneState.bounds,
       this.sceneState.cameraHeight,
       this.sceneState.viewportCenter
     );
 
-    this.sceneState.background.stacks = updatedStacks;
+    this.sceneState.background.rects = updatedRects;
 
     // spawn new stacks
-    const newStacks = this.rectSpawner?.update(
-      deltaMs,
-      this.sceneState.cameraHeight,
-      this.sceneState.viewportCenter,
-      this.sceneState.bounds
-    )
-
-    this.sceneState.background.stacks.push(...(newStacks || []));
-
-
+    const spawner = this.rectSpawner;
+    if (spawner != null) {
+      const newRects: GameRect[] | null = spawner.update(
+        deltaMs,
+        this.sceneState.cameraHeight,
+        this.sceneState.viewportCenter,
+        this.sceneState.bounds
+      ) 
+  
+      this.sceneState.background.rects.push(...(newRects || []));
+    }
+    
   } // end update
 
-  private static updateStack(deltaMs: number, stack: BgRectStack2) {
-    const deltaPos = stack.v.copy().scale(deltaMs / 1000);
-    stack.topRect.center = stack.topRect.center.copy().add(deltaPos);
-    stack.ageMs += deltaMs;
+  private static updateRect(deltaMs: number, rect: GameRect): void {
+    const deltaPos = rect.v.copy().scale(deltaMs / 1000);
+    rect.center.add(deltaPos);
+    rect.ageMs += deltaMs;
   }
 
-  private static pruneStacks(
-    stacks: BgRectStack2[],
+  private static pruneRects(
+    rects: GameRect[],
     bounds: Rect,
     cameraHeight: number,
     viewportCenter: Vec2
-  ): BgRectStack2[] {
-    function shouldKeep(stack: BgRectStack2): boolean {
+  ): GameRect[] {
+    function shouldKeep(gameRect: GameRect): boolean {
+      const visible = isRectVisible(bounds, gameRect, cameraHeight, viewportCenter);
+      const noFutureIntersection =  !RectUtils.willIntersect(
+        gameRect.r,
+        gameRect.v,
+        bounds
+      );
       const shouldRemove =
-        isStackOutOfBounds(bounds, stack, cameraHeight, viewportCenter) &&
-        !RectUtils.willIntersect(
-          GameRect.toRect(stack.topRect),
-          stack.v,
-          bounds
-        );
+        !visible &&noFutureIntersection;
+       
+        // console.log(`Checking rect: ${gameRect.r.toString()}, Velocity: ${gameRect.v.toString()}, Age: ${gameRect.ageMs}`);
+        // console.log(`Out of bounds: ${!visible}, No future intersection: ${noFutureIntersection}`);
+        // console.log(`Rect JSON: ${JSON.stringify(gameRect.r)},\n Bounds JSON: ${JSON.stringify(bounds)}`);
 
       return !shouldRemove; // todo, this logic is buggy
     }
 
-    return stacks.filter(shouldKeep);
+    return rects.filter(shouldKeep);
   }
 } // end backgroundmanager
 
 export class Background {
-  constructor(public stacks: BgRectStack2[] = []) {}
+  constructor(public rects: GameRect[] = []) {}
 
   // ========= region: static methods ==========
 
   static pattern0(bounds: Rect): Background {
     return new Background([
-      stackAt({
-        percentX: 0.2,
-        percentY: 0.2,
-        xsize: 0.1,
-        ysize: 0.1,
-        v: new Vec2(0.1, 0.1),
-        bounds: bounds,
-        numRects: 3,
-      }),
+      new GameRect(
+        new Vec2( bounds.w / 4, bounds.h / 4),
+        .1, .1, Color.RED, 0
+      )
     ]);
   } // end pattern0
 
@@ -144,7 +147,7 @@ export class Background {
       }),
     ]);
 
-    return new Background(stacks);
+    return new Background(stacks.flat());
   } // end pattern1
 } // end class Background
 
@@ -156,7 +159,7 @@ function stackAt(a: {
   v: Vec2;
   bounds: Rect;
   numRects: number;
-}): BgRectStack2 {
+}): GameRect[] {
   const centerX = a.bounds.x + a.percentX * a.bounds.w;
   const centerY = a.bounds.y + a.percentY * a.bounds.h;
   return BgRectStack2.fromObject({
@@ -167,30 +170,47 @@ function stackAt(a: {
       Color.RED,
       0
     ),
-    topZ: 0,
     zStep: 1,
     v: a.v,
     numRects: a.numRects, // Default size value
-  });
+  }).allRects();
 }
 
-function isStackOutOfBounds(
+// function isRectOutOfbounds(
+//   bounds: Rect,
+//   gameRect: GameRect,
+//   cameraHeight: number,
+//   viewportCenter: Vec2
+// ): boolean {
+//   const projectedRect = getPerspectiveRect(
+//     gameRect,
+//     gameRect.z,
+//     cameraHeight,
+//     viewportCenter
+//   );
+
+//   console.log(`Projected Rect: ${JSON.stringify(projectedRect.r)}, Bounds: ${JSON.stringify(bounds)}`);
+
+//   return Rect.intersects(bounds, projectedRect.r)
+// }
+
+function isRectVisible(
   bounds: Rect,
-  stack: BgRectStack2,
+  gameRect: GameRect,
   cameraHeight: number,
   viewportCenter: Vec2
 ): boolean {
-  const top = stack.topRect;
-  const bottom = BgRectStack2.bottomRect(stack, cameraHeight, viewportCenter);
+  
+  const projected = projectRect(
+    gameRect.r,
+    gameRect.z,
+    cameraHeight,
+    viewportCenter
+  );
 
-  const topRect = GameRect.toRect(top);
-  const bottomRect = GameRect.toRect(bottom);
-  const eitherInBounds =
-    Rect.intersects(topRect, bounds) || Rect.intersects(bottomRect, bounds);
-  return !eitherInBounds;
+  return Rect.intersects(bounds, projected);
+
 }
-
-
 
 
 export function RectSpawner1(bounds: Rect): RectSpawner {
@@ -253,18 +273,19 @@ export function RectSpawner1(bounds: Rect): RectSpawner {
     bounds: bounds,
     numRects: numRects,
   }),)
+  
 
-  stacks.forEach((stack) => {
-    stack.topRect.r.translate(stack.v.copy().scale(-8));
-  });
+  // stacks.forEach((gameRect: GameRect) => {
+  //   gameRect: GameRect.topRect.r.translate(gameRect: GameRect.v.copy().scale(-8));
+  // });
 
-  return new RectSpawner(stacks, 1000);
+  return new RectSpawner(stacks.flat(), 1000);
 }
 
 
 export function RectSpawner2(bounds: Rect) : RectSpawner {
 
-  const stacks = [] as BgRectStack2[];
+  const stacks = [] as GameRect[];
   const numRects = 32;
   const zStep = .1;
   const v = new Vec2(0  , -.2);
@@ -287,7 +308,7 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
     v: v,
   });
 
-  stacks.push(streetStack);
+  stacks.push(...(streetStack.allRects()));
 
   for (let y = 0; y < 4; y++) {
     for (let x = 0; x < 3; x++) { 
@@ -302,10 +323,8 @@ export function RectSpawner2(bounds: Rect) : RectSpawner {
       v: v,
     });
 
-    stacks.push(buildingStack);
+    stacks.push(...buildingStack.allRects());
     }
-    
-
   }
 
 

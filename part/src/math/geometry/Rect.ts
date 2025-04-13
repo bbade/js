@@ -1,4 +1,5 @@
 import { randomRange } from "../math";
+import { sortaEqual } from "../util";
 import { Vec2 } from "../vec2";
 import { Ray2 } from "./Ray";
 
@@ -149,6 +150,10 @@ export class RectUtils  {
         const ray = new Ray2(r1.p, r1Velocity);
         const r2Expanded = RectUtils.expand(r2, r1.w, r1.h);
 
-        return ray.intersectsRect(r2Expanded);
+        if (sortaEqual(0, r1Velocity.lenSq())) {
+            return r1.intersects(r2);
+        } else {
+            return ray.intersectsRect(r2Expanded);
+        }
     }
 }

@@ -18,8 +18,6 @@ export class BgRectStack2 {
     public topRect: GameRect,
     public zStep: number,
     public numRects: number = 10,
-    public v: Vec2,
-    public ageMs: number = 0,
   ) {}
 
   static fromObject(params: {
@@ -33,8 +31,6 @@ export class BgRectStack2 {
       params.topRect,
       params.zStep,
       params.numRects ?? 10,
-      params.v,
-      params.ageMs ?? 0
     );
   }
 
@@ -43,12 +39,21 @@ export class BgRectStack2 {
       GameRect.copy(this.topRect),
       this.zStep,
       this.numRects,
-      this.v.copy(),
-      this.ageMs,
     );
   }
 
-  static getRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect[] {
+  allRects(): GameRect[] {
+    const rects: GameRect[] = [];
+    for (let i = 0; i < this.numRects; i++) {
+      const r = this.topRect.copy();
+      const z = this.topZ + i * this.zStep;
+      r.z = z;
+      rects.push(r);
+    }
+    return rects;
+  }
+
+  static getPerspectiveRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect[] {
     const rects: GameRect[] = [];
     for (let i = 0; i < stack.numRects; i++) {
       const z = stack.topZ + i * stack.zStep;
@@ -70,7 +75,7 @@ export function getPerspectiveRect(
   cameraHeight: number,
   vpCenter: Vec2
 ): GameRect {
-  const originalRect = GameRect.toRect(original);
+  const originalRect = GameRect.toRect_deprecated(original);
   const projectedRect: Rect = projectRect(
     originalRect,
     rectZ,
@@ -81,6 +86,24 @@ export function getPerspectiveRect(
   const color = colorForRect(original.color, cameraHeight, rectZ);
   return GameRect.fromRect(projectedRect, color, rectZ);
 }
+
+// export function projectGameRect(
+//   gameRect: GameRect,
+//   cameraHeight: number,
+//   vpCenter: Vec2
+// ): GameRect {
+//   const originalRect = gameRect.r;
+//   const projectedRect: Rect = projectRect(
+//     originalRect,
+//     gameRect.z,
+//     cameraHeight,
+//     vpCenter
+//   );
+
+//   const color = colorForRect(gameRect.color, cameraHeight, gameRect.z);
+//   return GameRect.fromRect(projectedRect, color, gameRect.z);
+// }
+
 
 export function projectRect(
   originalRect: Rect,
@@ -106,7 +129,7 @@ export function projectRect(
   return new Rect(xt, yt, wt, ht);
 }
 
-function colorForRect(
+export function colorForRect(
   baseColor: Color,
   cameraHeight: number,
   z: number

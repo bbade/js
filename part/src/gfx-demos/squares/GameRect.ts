@@ -4,16 +4,19 @@ import { clamp } from "../../math/math";
 import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 
-export class GameRect {
+export class GameRect implements Updateable {
 
   public readonly r: Rect;
+  rotateAnimation: ScalarAnimation | null = null;
 
   constructor(
      center: Vec2,
      xsize: number,
      ysize: number,
     public color: Color,
-    public z: number
+    public z: number,
+    public v: Vec2 = new Vec2(0, 0),
+    public ageMs: number = 0,
   ) {
     this.r = new Rect(center.x - xsize / 2, center.y - ysize / 2, xsize, ysize);
   }
@@ -39,13 +42,28 @@ export class GameRect {
     return this.r.h;
   }
 
+  copy(): GameRect {
+    return GameRect.copy(this);
+  }
+
+  get rotation(): number {
+    const animation = this.rotateAnimation;
+    if (animation) {
+      return animation.getValue(this.ageMs);
+    } else {
+      return 0;
+    }
+  }
+
   static copy(gr: GameRect): GameRect {
     return new GameRect(
       new Vec2(gr.center.x, gr.center.y),
       gr.xsize,
       gr.ysize,
       gr.color,
-      gr.z
+      gr.z,
+      gr.v.copy(),
+      gr.ageMs
     );
   }
 
@@ -75,13 +93,17 @@ export class GameRect {
     );
   }
 
-  static toRect(gr: GameRect): Rect {
+  static toRect_deprecated(gr: GameRect): Rect {
     return new Rect(
       gr.center.x - gr.xsize / 2,
       gr.center.y - gr.ysize / 2,
       gr.xsize,
       gr.ysize
     );
+  }
+
+   update(deltaMs: number): void {
+    this.ageMs += deltaMs;
   }
 
 }

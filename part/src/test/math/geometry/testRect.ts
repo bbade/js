@@ -291,6 +291,17 @@ export function runTestRect() {
     );
   });
 
+  // Test Case 27: Partial Overlap - Small rect inside larger rect
+  runTest(() => {
+    const r1 = new Rect(0.11666666666666663, 0.2, 0.1, 0.1); // (0.1167, 0.2) to (0.2167, 0.3)
+    const r2 = new Rect(0, 0, 0.6666666666666666, 1); // (0, 0) to (0.6667, 1)
+    return assertTrue(
+      r1.intersects(r2),
+      "TestRect 27: Should intersect when small rect is inside larger rect"
+    );
+  });
+
+
   // --- Test Summary ---
   console.log("\n--- Test Summary ---");
   if (failures === 0) {
