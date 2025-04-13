@@ -3,15 +3,19 @@ import { Rect } from "../../math/geometry/Rect";
 import { Vec2 } from "../../math/vec2";
 import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
+import { clamp } from "../../math/math";
 
 
 export class BgRectStack2 {
 
   public metadata = {}; // any type
 
+  get topZ(): number {
+    return this.topRect.z;
+  }
+
   constructor(
     public topRect: GameRect,
-    public topZ: number,
     public zStep: number,
     public numRects: number = 10,
     public v: Vec2,
@@ -20,7 +24,6 @@ export class BgRectStack2 {
 
   static fromObject(params: {
     topRect: GameRect;
-    topZ: number;
     zStep: number;
     numRects?: number;
     v: Vec2;
@@ -28,7 +31,6 @@ export class BgRectStack2 {
   }): BgRectStack2 {
     return new BgRectStack2(
       params.topRect,
-      params.topZ,
       params.zStep,
       params.numRects ?? 10,
       params.v,
@@ -39,7 +41,6 @@ export class BgRectStack2 {
   copy(): BgRectStack2 {
     return new BgRectStack2(
       GameRect.copy(this.topRect),
-      this.topZ,
       this.zStep,
       this.numRects,
       this.v.copy(),
@@ -111,5 +112,5 @@ function colorForRect(
   z: number
 ): Color {
   const brightnessScale = 1 - 0.07 * (z / cameraHeight);
-  return scaleBrightness(baseColor, brightnessScale);
+return scaleBrightness(baseColor, clamp(0, 1,Math.max(.1, brightnessScale)));
 }

@@ -32,9 +32,30 @@ export class Rect {
         return new Vec2(this.x + this.w / 2, this.y + this.h / 2);
     }
 
-    translate(v: Vec2) {
+    translate(v: Vec2): Rect {
         this.x += v.x;
         this.y += v.y;
+        return this;
+    }
+
+    scale(s: number, centered: boolean = false) {
+        const newW = this.w*s;
+        const newH = this.h*s;
+
+        const dw = newW - this.w;
+        const dh = newH - this.h;
+
+        this.w = newW;
+        this.h = newH;
+
+        if (centered  ){
+            this.x -= dw / 2;
+            this.y -= dh / 2;
+        }
+    }
+
+    copy(): Rect {
+        return new Rect(this.x, this.y, this.w, this.h);
     }
 
     constructor(x: number = 0, y: number = 0, w: number = 0, h: number = 0) {

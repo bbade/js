@@ -28,11 +28,9 @@ export class RectSpawner {
         bounds: Rect,
     ): BgRectStack2[] | null 
     {
-        console.log(`Time since last spawn: ${this.timeSinceSpawn}ms`);
         this.timeSinceSpawn += deltaMs;
         if (this.timeSinceSpawn > this.intervalMs) {
             this.timeSinceSpawn = 0;
-            console.log("spawning stacks");
             return  this.spawnStacks();
         } else {
             return null; 

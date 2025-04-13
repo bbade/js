@@ -68,7 +68,7 @@ export class BackgroundManager implements Updateable {
           bounds
         );
 
-      return !shouldRemove;
+      return !shouldRemove; // todo, this logic is buggy
     }
 
     return stacks.filter(shouldKeep);
@@ -259,4 +259,56 @@ export function RectSpawner1(bounds: Rect): RectSpawner {
   });
 
   return new RectSpawner(stacks, 1000);
+}
+
+
+export function RectSpawner2(bounds: Rect) : RectSpawner {
+
+  const stacks = [] as BgRectStack2[];
+  const numRects = 32;
+  const zStep = .1;
+  const v = new Vec2(0  , -.2);
+  const streetLevel = zStep * numRects;
+
+  const street = bounds.copy();
+  street.scale(1.8, true);
+  street.translate(new Vec2(0, street.h*1.3))
+  const xpadding = street.w * .2;
+  const hpadding = street.h * .18;
+
+  const buildingSize = Math.min(bounds.w, bounds.h) * .2;
+  const buildingStart = new Vec2(street.x + xpadding, bounds.y + hpadding + 5*buildingSize);
+  const buildingRect = Rect.fromV2wh(buildingStart, buildingSize, buildingSize);
+
+  const streetStack = BgRectStack2.fromObject({
+    topRect: GameRect.fromRect(street, Color.GRAY, streetLevel),
+    zStep: 1, // only one layer, doesn't matter
+    numRects: 1,
+    v: v,
+  });
+
+  stacks.push(streetStack);
+
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 3; x++) { 
+      const tx = x * (buildingSize + xpadding) + buildingStart.x;
+      const ty = y * (buildingSize + hpadding) + buildingStart.y;
+      const offset = new Vec2(tx, ty);
+      const topRect: Rect = buildingRect.copy().translate(offset);
+      const buildingStack = BgRectStack2.fromObject({
+      topRect: GameRect.fromRect(topRect, Color.RED, 0),
+      zStep: zStep,
+      numRects: numRects,
+      v: v,
+    });
+
+    stacks.push(buildingStack);
+    }
+    
+
+  }
+
+
+  return new RectSpawner(stacks, 8000);
+
 }
