@@ -78,7 +78,6 @@ export function scaleBrightness_deprecated(color: Color, value: number): void {
 }
 
 /**
- * TODO: deprecate
  * @param color 
  * @param value  0-1
  */
@@ -90,5 +89,5 @@ export function scaleBrightness(color: Color, value: number): Color {
         throw new Error(`Brightness value must be between 0 and 1 inclusive: ${value}`);
     }
 
-    return color.copy().scaleBrightness(    value);
+    return color.copy().scaleBrightness( value);
 }

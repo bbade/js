@@ -5,9 +5,7 @@ import { SceneState } from "./RectGameIndex";
 import { GameRect } from "./GameRect";
 import { clamp } from "../../math/math";
 
-
 export class BgRectStack2 {
-
   public metadata = {}; // any type
 
   get topZ(): number {
@@ -17,7 +15,7 @@ export class BgRectStack2 {
   constructor(
     public topRect: GameRect,
     public zStep: number,
-    public numRects: number = 10,
+    public numRects: number = 10
   ) {}
 
   static fromObject(params: {
@@ -28,7 +26,7 @@ export class BgRectStack2 {
     return new BgRectStack2(
       params.topRect,
       params.zStep,
-      params.numRects ?? 10,
+      params.numRects ?? 10
     );
   }
 
@@ -36,7 +34,7 @@ export class BgRectStack2 {
     return new BgRectStack2(
       GameRect.copy(this.topRect),
       this.zStep,
-      this.numRects,
+      this.numRects
     );
   }
 
@@ -50,14 +48,17 @@ export class BgRectStack2 {
       rects.push(r);
     }
 
-
-    rects.forEach(rect => {
+    rects.forEach((rect) => {
       console.log(JSON.stringify(rect));
     });
     return rects;
   }
 
-  static getPerspectiveRects(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect[] {
+  static getPerspectiveRects(
+    stack: BgRectStack2,
+    cameraHeight: number,
+    vpCenter: Vec2
+  ): GameRect[] {
     const rects: GameRect[] = [];
     for (let i = 0; i < stack.numRects; i++) {
       const z = stack.topZ + i * stack.zStep;
@@ -66,12 +67,15 @@ export class BgRectStack2 {
     return rects;
   }
 
-  static bottomRect(stack: BgRectStack2, cameraHeight: number, vpCenter: Vec2): GameRect {
+  static bottomRect(
+    stack: BgRectStack2,
+    cameraHeight: number,
+    vpCenter: Vec2
+  ): GameRect {
     const z = stack.topZ + (stack.numRects - 1) * stack.zStep;
     return getPerspectiveRect(stack.topRect, z, cameraHeight, vpCenter);
   }
 }
-
 
 export function getPerspectiveRect(
   original: GameRect,
@@ -108,7 +112,6 @@ export function getPerspectiveRect(
 //   return GameRect.fromRect(projectedRect, color, gameRect.z);
 // }
 
-
 export function projectRect(
   originalRect: Rect,
   rectZ: number,
@@ -138,6 +141,6 @@ export function colorForRect(
   cameraHeight: number,
   z: number
 ): Color {
-  const brightnessScale = 1 - 0.07 * (z / cameraHeight);
-return scaleBrightness(baseColor, clamp(0, 1,Math.max(.1, brightnessScale)));
+  const brightnessScale = 1 - Math.log(z+1)/6;
+  return scaleBrightness(baseColor, clamp(brightnessScale, 0.05, 1));
 }

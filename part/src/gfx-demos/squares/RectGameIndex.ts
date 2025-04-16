@@ -66,7 +66,7 @@ class RectGame {
     this.gameState = makeInitialState(bounds);
     // this.gameState.background = Background.pattern1(this.gameState.bounds);
     this.backgroundManager = new BackgroundManager(
-      this.gameState , RectSpawner3(this.gameState.bounds)
+      this.gameState , RectSpawner2(this.gameState.bounds)
     );
 
     Keys.init(); // Initialize key handling
@@ -110,19 +110,7 @@ class RectGame {
     zOrderedRects.sort((a, b) => b.z - a.z);
 
     zOrderedRects.forEach((rect: GameRect) => {
-      // const r = GameRect.toRect(rect);
 
-      // drawBgRect(
-      //   r.x,
-      //   r.y,
-      //   r.w,
-      //   r.h,
-      //   rect.color,
-      //   rect.z,
-      //   this.gameState.cameraHeight,
-      //   this.gameState.viewportCenter,
-      //   this.context
-      // );
       drawBgRectTransformed(
         rect,
         this.gameState.cameraHeight,
@@ -131,32 +119,8 @@ class RectGame {
       );
     }); // end for-each-zordered-rect
 
-    // const dr2 = this.debugRect.copy();
-    // dr2.color = Color.YELLOW;
-    // dr2.center = this.gameState.viewportCenter.copy();
 
-    // const dr3 = this.debugRect.copy();
-    // dr3.center = this.gameState.bounds.x1y1.copy();
-    // dr3.color = Color.GRAY;
-
-    // [this.debugRect, dr2, dr3].forEach((debugRect) => {
-    //   drawBgRectTransformed(
-    //     debugRect,
-    //     this.gameState.cameraHeight,
-    //     this.gameState.viewportCenter,
-    //     this.context
-    //   );
-
-    //   // this.context.fillStyle = Color.CYAN.toHexStr();
-    //   // this.context.fillRect(
-    //   //   debugRect.r.x,
-    //   //   debugRect.r.y,
-    //   //   debugRect.r.w,
-    //   //   debugRect.r.h
-    //   // );
-    // });
-
-    drawDebugCircles(this.gameState.bounds, this.context);
+    // drawDebugCircles(this.gameState.bounds, this.context);
 
   } // end draw()
 
@@ -203,12 +167,6 @@ class RectGame {
 
     return directionInput.normalize();
   }
-
-  // private drawGameRect(rect: GameRect) {
-  //   this.context.fillStyle = rect.color.toHexStr();
-  //   let r = rect.r;
-  //   this.context.fillRect(r.x, r.y, r.w, r.h);
-  // }
 }
 
 const game = new RectGame();
@@ -248,9 +206,9 @@ export function drawBgRectTransformed(
   const color = colorForRect(gameRect.color, cameraHeight, gameRect.z);
 
   context.fillStyle = color.toHexStr();
-  context.fillRect(0, 0, r.w, r.h);
+  context.fillRect(-r.w/2, -r.h/2, r.w, r.h);
   context.strokeStyle = Color.BLUE.toHexStr();
-  context.strokeRect(0,0, r.w, r.h);
+  context.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
 
   context.restore();
 }

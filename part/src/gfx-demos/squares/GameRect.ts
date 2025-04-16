@@ -48,9 +48,11 @@ export class GameRect implements Updateable {
   }
 
   get rotation(): number {
+    if (this.rotateAnimation === undefined) {
+      // can be null or defined, but not undefined. 
+      throw new Error("rotateAnimation is undefined");
+    }
     const animation = this.rotateAnimation;
-
-    // console.log(`Animation: ${animation ? animation.getValue(this.ageMs) : 'None'}`);
     
     if (animation) {
       return animation.getValue(this.ageMs);
@@ -115,6 +117,7 @@ export class GameRect implements Updateable {
     const deltaPos = this.v.copy().scale(deltaMs / 1000);
     this.center = this.center.add(deltaPos);
     this.ageMs += deltaMs;
+    // this.z -= .01;
 
     // console.log(`center: ${this.center}, v: ${this.v}, z: ${this.z}, deltaMs: ${deltaMs}`);
   }

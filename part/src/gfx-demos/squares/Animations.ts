@@ -6,12 +6,10 @@ export interface ScalarAnimation {
 }
 
 
-export function slowRotateAnimation(initialValue: number): ScalarAnimation {
+export function slowRotateAnimation(initialValue: number, rateScale: number = 1): ScalarAnimation {
     return {
         getValue(timeMs: number): number {
-            const r =  rotatePerSecond(.2, timeMs)
-
-            console.log(r);
+            const r =  rotatePerSecond(.2, timeMs*rateScale)
             return r+ initialValue;
         },
     };
