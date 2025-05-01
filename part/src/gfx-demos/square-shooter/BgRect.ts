@@ -3,9 +3,9 @@ import { Rect } from "../../math/geometry/Rect";
 import { clamp } from "../../math/math";
 import { Vec2 } from "../../math/vec2";
 import { ScalarAnimation } from "./Animations";
-import { SceneState } from "./RectGameIndex";
+import { SceneState } from "./RectGameBgMain";
 
-export class GameRect implements Updateable {
+export class BgRect implements Updateable {
 
   public readonly r: Rect;
 
@@ -43,8 +43,8 @@ export class GameRect implements Updateable {
     return this.r.h;
   }
 
-  copy(): GameRect {
-    return GameRect.copy(this);
+  copy(): BgRect {
+    return BgRect.copy(this);
   }
 
   get rotation(): number {
@@ -61,8 +61,8 @@ export class GameRect implements Updateable {
     }
   }
 
-  static copy(gr: GameRect): GameRect {
-    return new GameRect(
+  static copy(gr: BgRect): BgRect {
+    return new BgRect(
       new Vec2(gr.center.x, gr.center.y),
       gr.xsize,
       gr.ysize,
@@ -81,8 +81,8 @@ export class GameRect implements Updateable {
     color: Color;
     z: number;
     v: Vec2;
-  }): GameRect {
-    return new GameRect(
+  }): BgRect {
+    return new BgRect(
       args.center,
       args.xsize,
       args.ysize,
@@ -92,8 +92,8 @@ export class GameRect implements Updateable {
     );
   }
 
-  static fromRect(r: Rect, color: Color, z: number, v: Vec2, ageMs: number = 0): GameRect {
-    return new GameRect(
+  static fromRect(r: Rect, color: Color, z: number, v: Vec2, ageMs: number = 0): BgRect {
+    return new BgRect(
       new Vec2(r.x + r.w / 2, r.y + r.h / 2),
       r.w,
       r.h,
@@ -104,7 +104,7 @@ export class GameRect implements Updateable {
     );
   }
 
-  static toRect_deprecated(gr: GameRect): Rect {
+  static toRect_deprecated(gr: BgRect): Rect {
     return new Rect(
       gr.center.x - gr.xsize / 2,
       gr.center.y - gr.ysize / 2,

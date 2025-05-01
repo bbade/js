@@ -13,8 +13,9 @@ import {
   RectSpawner2,
   RectSpawner3,
 } from "./BackgroundManager";
-import { GameRect } from "./GameRect";
-import { BgRectStack2, colorForRect, projectRect } from "./BgRectStack";
+import { BgRect } from "./BgRect";
+import { drawBgRectTransformed } from "./DrawRects";
+import { FgRect, PlayerInput, RectGameFgManager } from "./RectGameFgMain";
 
 const K = {
   lineWidth: 0.001,
@@ -51,6 +52,7 @@ class RectGame {
 
   gameState: SceneState;
   backgroundManager: BackgroundManager;
+  fgManager: RectGameFgManager;
 
   constructor() {
     this.context.fillStyle = K.canvasBgColor.toHexStr();
@@ -66,8 +68,11 @@ class RectGame {
     this.gameState = makeInitialState(bounds);
     // this.gameState.background = Background.pattern1(this.gameState.bounds);
     this.backgroundManager = new BackgroundManager(
-      this.gameState , RectSpawner2(this.gameState.bounds)
+      this.gameState,
+      RectSpawner2(this.gameState.bounds)
     );
+
+    this.fgManager = new RectGameFgManager(this.gameState);
 
     Keys.init(); // Initialize key handling
   }
@@ -91,26 +96,33 @@ class RectGame {
 
     // update state
     this.backgroundManager.update(deltaMs);
+    this.fgManager.update(deltaMs, directionInput);
 
     // draw
     this.draw();
   }
 
-  debugRect = new GameRect(new Vec2(0, 0), 0.2, 0.2, Color.MAGENTA, 0, new Vec2());
+  debugRect = new BgRect(
+    new Vec2(0, 0),
+    0.2,
+    0.2,
+    Color.MAGENTA,
+    0,
+    new Vec2()
+  );
 
   draw() {
     this.context.fillStyle = K.canvasBgColor.toHexStr();
     this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    const zOrderedRects: GameRect[] = [];
-    this.gameState.background.rects.forEach((rect: GameRect) => {
+    const zOrderedRects: BgRect[] = [];
+    this.gameState.background.rects.forEach((rect: BgRect) => {
       zOrderedRects.push(rect);
     });
 
     zOrderedRects.sort((a, b) => b.z - a.z);
 
-    zOrderedRects.forEach((rect: GameRect) => {
-
+    zOrderedRects.forEach((rect: BgRect) => {
       drawBgRectTransformed(
         rect,
         this.gameState.cameraHeight,
@@ -119,38 +131,16 @@ class RectGame {
       );
     }); // end for-each-zordered-rect
 
-
     // drawDebugCircles(this.gameState.bounds, this.context);
+
+    this.fgManager.draw(this.context, this.gameState.cameraHeight, this.gameState.viewportCenter);
 
   } // end draw()
 
-  private checkInput(): Vec2 {
+  private checkInput(): PlayerInput {
     let changed = false;
-    const directionInput = new Vec2(0, 0);
-    if (Keys.isDown("KeyW")) {
-      directionInput.y += 1;
-      changed = true;
-    }
-    if (Keys.isDown("KeyS")) {
-      directionInput.y -= 1;
-      changed = true;
-    }
-    if (Keys.isDown("KeyA")) {
-      directionInput.x -= 1;
-      changed = true;
-    }
-    if (Keys.isDown("KeyD")) {
-      directionInput.x += 1;
-      changed = true;
-    }
-    // if (Keys.isDown("Equal")) {
-    //   this.gameState.bottomZ += 0.2;
-    //   changed = true;
-    // }
-    // if (Keys.isDown("Minus")) {
-    //   this.gameState.bottomZ -= 0.2;
-    //   changed = true;
-    // }
+
+
     if (Keys.isDown("KeyQ")) {
       this.gameState.cameraHeight += 0.2;
       changed = true;
@@ -165,70 +155,15 @@ class RectGame {
       console.log("camera height:", this.gameState.cameraHeight);
     }
 
-    return directionInput.normalize();
+    return {
+      left: Keys.isDown("ArrowLeft"),
+      right: Keys.isDown("ArrowRight"),
+      up: Keys.isDown("ArrowUp"),
+      down: Keys.isDown("ArrowDown"),
+      fire: Keys.isDown("Space"),
+    };
   }
 }
 
 const game = new RectGame();
 game.run();
-
-export function drawBgRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  color: Color,
-  z: number,
-  cameraHeight: number,
-  vpCenter: Vec2,
-  context: CanvasRenderingContext2D
-) {
-  //
-
-  context.fillStyle = color.toHexStr();
-  context.fillRect(x, y, w, h);
-  context.strokeStyle = Color.BLUE.toHexStr();
-  context.strokeRect(x, y, w, h);
-}
-
-export function drawBgRectTransformed(
-  gameRect: GameRect,
-  cameraHeight: number,
-  vpCenter: Vec2,
-  context: CanvasRenderingContext2D
-) {
-  const r = projectRect(gameRect.r, gameRect.z, cameraHeight, vpCenter);
-
-  context.save();
-  context.translate(r.x, r.y);
-  context.rotate(gameRect.rotation);
-
-  const color = colorForRect(gameRect.color, cameraHeight, gameRect.z);
-
-  context.fillStyle = color.toHexStr();
-  context.fillRect(-r.w/2, -r.h/2, r.w, r.h);
-  context.strokeStyle = Color.BLUE.toHexStr();
-  context.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
-
-  context.restore();
-}
-
-function drawDebugCircles(bounds: Rect, context: CanvasRenderingContext2D) {
-  const corners = [
-    { x: bounds.x, y: bounds.y },
-    { x: bounds.x + bounds.w, y: bounds.y },
-    { x: bounds.x, y: bounds.y + bounds.h },
-    { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
-  ];
-
-  context.save();
-  context.fillStyle = "green";
-
-  corners.forEach((corner) => {
-    context.beginPath();
-    context.arc(corner.x, corner.y, 0.1, 0, Math.PI * 2);
-    context.fill();
-  });
-
-  context.restore();
-}

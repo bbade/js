@@ -1,5 +1,5 @@
-import { BgRectStack2, getPerspectiveRect, projectRect } from "../gfx-demos/squares/BgRectStack";
-import { GameRect } from "../gfx-demos/squares/GameRect";
+import { BgRectStack2, getPerspectiveRect, projectRect } from "../gfx-demos/square-shooter/BgRectStack";
+import { BgRect } from "../gfx-demos/square-shooter/BgRect";
 import { Rect } from "../math/geometry/Rect";
 import { Vec2 } from "../math/vec2";
 import { Color } from "../Color";
@@ -36,8 +36,8 @@ import { assertRectsEqual } from "./TestUtils";
 //   return true;
 // }
 
-function rect(gameRect: GameRect): Rect {
-  return GameRect.toRect_deprecated(gameRect);
+function rect(gameRect: BgRect): Rect {
+  return BgRect.toRect_deprecated(gameRect);
 }
 
 function testGameRect(): boolean {
@@ -47,7 +47,7 @@ function testGameRect(): boolean {
   const color = new Color(255, 0, 0);
   const z = 0;
 
-  const gameRect = new GameRect(center, xsize, ysize, color, z);
+  const gameRect = new BgRect(center, xsize, ysize, color, z);
   const actualRect = rect(gameRect);
 
   const expectedRect = new Rect(0, 0, 1, 1);
@@ -79,7 +79,7 @@ function testStackSize1(): boolean {
   const velocity = new Vec2(0, 0);;
 
   const r = new Rect(x, y, w, h);
-  const topRect = GameRect.fromRect(r, new Color(255, 0, 0), topZ);
+  const topRect = BgRect.fromRect(r, new Color(255, 0, 0), topZ);
 
   // renderer
   const cameraHeight = 1;
@@ -87,7 +87,7 @@ function testStackSize1(): boolean {
 
   // test
   const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
-  const gameRects: GameRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
+  const gameRects: BgRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
 
 
   if (gameRects.length !== 1) {
@@ -97,8 +97,8 @@ function testStackSize1(): boolean {
 
   const expectedRect = topRect;
 
-  const actualRect = GameRect.toRect_deprecated(gameRects[0]);
-  const expectedR = GameRect.toRect_deprecated(expectedRect);
+  const actualRect = BgRect.toRect_deprecated(gameRects[0]);
+  const expectedR = BgRect.toRect_deprecated(expectedRect);
 
   if (
     actualRect.x !== expectedR.x ||
@@ -130,7 +130,7 @@ function testStackSize2(): boolean {
   const velocity = new Vec2(0, 0);;
 
   const topR = new Rect(x, y, w, h);
-  const topRect = GameRect.fromRect(topR, new Color(255, 0, 0), topZ);
+  const topRect = BgRect.fromRect(topR, new Color(255, 0, 0), topZ);
 
   // renderer
   const cameraHeight = 1;
@@ -138,7 +138,7 @@ function testStackSize2(): boolean {
 
   // test
   const stack: BgRectStack2 = new BgRectStack2(topRect, topZ, zStep, numRects, velocity);
-  const gameRects: GameRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
+  const gameRects: BgRect[] = BgRectStack2.getPerspectiveRects(stack, cameraHeight, vpCenter);
 
 
   if (gameRects.length !== 2) {
@@ -147,8 +147,8 @@ function testStackSize2(): boolean {
   }
 
 
-  const actualTopRect = GameRect.toRect_deprecated(gameRects[0]);
-  const actualBottomRect = GameRect.toRect_deprecated(gameRects[1]);
+  const actualTopRect = BgRect.toRect_deprecated(gameRects[0]);
+  const actualBottomRect = BgRect.toRect_deprecated(gameRects[1]);
 
   const expectedTopR = topR;
   const expectedBottomRect = new Rect(0, 0, .5, .5);

@@ -1,20 +1,20 @@
 import { Rect } from "../../math/geometry/Rect";
 import { Vec2 } from "../../math/vec2";
-import { GameRect } from "./GameRect";
+import { BgRect } from "./BgRect";
 
 
 
 export class RectSpawner {
     
     readonly intervalMs: number;
-    readonly templateRects: GameRect[];
+    readonly templateRects: BgRect[];
 
     // mutable state
     private timeSinceSpawn: number = 9999 *1000; // big number so we spawn right away
 
     
     constructor(
-        templateRects: GameRect[],
+        templateRects: BgRect[],
         intervalMs: number,
     ) {
         this.templateRects = templateRects;
@@ -26,7 +26,7 @@ export class RectSpawner {
         cameraHeight: number,
         vpCenter: Vec2,
         bounds: Rect,
-    ): GameRect[] | null 
+    ): BgRect[] | null 
     {
         this.timeSinceSpawn += deltaMs;
         if (this.timeSinceSpawn > this.intervalMs) {
@@ -37,9 +37,9 @@ export class RectSpawner {
         }
     }
 
-    private spawn(): GameRect[] {
-        const newRects = [] as GameRect[];
-        this.templateRects.forEach((templateRect: GameRect) => {
+    private spawn(): BgRect[] {
+        const newRects = [] as BgRect[];
+        this.templateRects.forEach((templateRect: BgRect) => {
             const newRect = templateRect.copy();
             newRects.push(newRect);
         });

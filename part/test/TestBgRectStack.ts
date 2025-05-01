@@ -1,5 +1,6 @@
 import { BgRectStack, getPerspectiveRect } from "../src/gfx-demos/squares/BgRectStack";
 import { GameRect } from "../src/gfx-demos/squares/RectUtils";
+import { Rect } from "../src/math/geometry/Rect";
 import { Vec2 } from "../src/math/vec2";
 import { Color } from "../src/Color";
 
@@ -16,16 +17,15 @@ function testGetPerspectiveRect(): boolean {
   for (let i = 0; i < numRects; i++) {
     const z = bottomZ - (i / numRects) * bottomZ;
     const expectedRect = getPerspectiveRect(topRect, z, cameraHeight, vpCenter);
-    const actualRect = GameRect.toRect(rects[i]);
 
     if (
-      actualRect.x !== expectedRect.r.x ||
-      actualRect.y !== expectedRect.r.y ||
-      actualRect.w !== expectedRect.r.w ||
-      actualRect.h !== expectedRect.r.h
+      rects[i].r.x !== expectedRect.r.x ||
+      rects[i].r.y !== expectedRect.r.y ||
+      rects[i].r.w !== expectedRect.r.w ||
+      rects[i].r.h !== expectedRect.r.h
     ) {
       console.error(
-        `❌ Test failed for rect at index ${i}. Expected: ${expectedRect.r.toString()}, Got: ${actualRect.toString()}`
+        `❌ Test failed for rect at index ${i}. Expected: ${expectedRect.r.toString()}, Got: ${rects[i].r.toString()}`
       );
       return false;
     }
@@ -50,16 +50,15 @@ function testStackSize1(): boolean {
   }
 
   const expectedRect = getPerspectiveRect(topRect, bottomZ, cameraHeight, vpCenter);
-  const actualRect = GameRect.toRect(rects[0]);
 
   if (
-    actualRect.x !== expectedRect.r.x ||
-    actualRect.y !== expectedRect.r.y ||
-    actualRect.w !== expectedRect.r.w ||
-    actualRect.h !== expectedRect.r.h
+    rects[0].r.x !== expectedRect.r.x ||
+    rects[0].r.y !== expectedRect.r.y ||
+    rects[0].r.w !== expectedRect.r.w ||
+    rects[0].r.h !== expectedRect.r.h
   ) {
     console.error(
-      `❌ Test failed for single rect. Expected: ${expectedRect.r.toString()}, Got: ${actualRect.toString()}`
+      `❌ Test failed for single rect. Expected: ${expectedRect.r.toString()}, Got: ${rects[0].r.toString()}`
     );
     return false;
   }

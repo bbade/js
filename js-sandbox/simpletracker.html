@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Music Tracker (Preamble/Step Apply)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+      /* Styles unchanged */
+      body {
+        font-family: "Inter", sans-serif;
+        overscroll-behavior: none;
+      }
+      .pattern-cell,
+      .effect-cell,
+      .row-number {
+        font-family: "Monospace", monospace;
+        height: 30px;
+        text-align: center;
+        padding: 2px;
+        border: 1px solid #ddd;
+        font-size: 0.8rem;
+        user-select: none;
+      }
+      .pattern-cell,
+      .effect-cell {
+        background-color: #fff;
+        caret-color: black;
+      }
+      .pattern-cell {
+        width: 55px;
+      }
+      .effect-cell {
+        width: 86px;
+        background-color: #fafafa;
+        color: #555;
+        padding-right: 6px;
+        border-left: none;
+        font-size: 0.75rem;
+      }
+      .pattern-cell::selection,
+      .effect-cell::selection {
+        background: transparent;
+      }
+      .pattern-cell::-moz-selection,
+      .effect-cell::-moz-selection {
+        background: transparent;
+      }
+      .pattern-cell:focus,
+      .effect-cell:focus {
+        outline: 2px solid #3b82f6;
+        background-color: #eff6ff !important;
+        z-index: 5;
+        position: relative;
+      }
+      .row-number {
+        color: #6b7280;
+        text-align: right;
+        padding-right: 8px;
+        position: sticky;
+        left: 0;
+        background-color: #f9fafb;
+        z-index: 10;
+        width: 40px;
+        border-right: 1px solid #ccc;
+      }
+      .header-cell {
+        font-weight: bold;
+        text-align: center;
+        padding: 5px 4px;
+        background-color: #f3f4f6;
+        border: 1px solid #ccc;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .header-cell:hover {
+        background-color: #e5e7eb;
+      }
+      .pattern-table {
+        table-layout: fixed;
+        border-collapse: collapse;
+        min-width: max-content;
+      }
+      .pattern-container {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background-color: #f9fafb;
+        width: 100%;
+        max-width: 90vw;
+        padding-bottom: 10px;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background-color: #f3f4f6;
+      }
+      thead th.row-number {
+        left: 0;
+        z-index: 30;
+      }
+      button {
+        transition: all 0.15s ease-in-out;
+      }
+      button:hover {
+        filter: brightness(95%);
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .beat-line .pattern-cell,
+      .beat-line .effect-cell {
+        background-color: #f5f5f5;
+      }
+      .bar-line td {
+        border-top: 2px solid #b0b0b0 !important;
+      }
+      .beat-line .row-number,
+      .bar-line .row-number {
+        font-weight: 500;
+        color: #555;
+      }
+      .beat-line .row-number {
+        background-color: #f5f5f5 !important;
+      }
+      .bar-line .row-number {
+        background-color: #e0e0e0 !important;
+      }
+      .playing-row .pattern-cell,
+      .playing-row .effect-cell {
+        background-color: #dbeafe !important;
+      }
+      .playing-row td {
+        border-top-color: #ddd !important;
+      }
+      .playing-row.bar-line td {
+        border-top-color: #ddd !important;
+      }
+      .playing-row .row-number {
+        color: #1d4ed8 !important;
+        font-weight: bold !important;
+        background-color: #dbeafe !important;
+      }
+      .input-error {
+        color: #dc2626 !important;
+      }
+      .preamble-fx-input {
+        font-family: "Monospace", monospace;
+        height: 30px;
+        text-align: center;
+        padding: 2px;
+        border: 1px solid #ccc;
+        font-size: 0.75rem;
+        background-color: #fafafa;
+        color: #555;
+        width: 86px;
+        border-radius: 4px;
+      }
+      .preamble-fx-input:focus {
+        outline: 2px solid #3b82f6;
+        background-color: #eff6ff !important;
+      }
+      .modal {
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+      .modal-content {
+        max-height: 80vh;
+      }
+      #preamble-channel-instrument-input {
+        font-family: "Monospace", monospace;
+        width: 80px;
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Monospace&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100 p-4 md:p-8 flex flex-col items-center min-h-screen">
+    <h1 class="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
+      Simple Music Tracker
+    </h1>
+
+    <div
+      class="controls bg-white p-4 rounded-lg shadow-md mb-6 flex flex-wrap gap-4 items-center justify-center w-full max-w-3xl"
+    >
+      <button
+        id="play-button"
+        class="bg-blue-500 text-white px-4 py-2 rounded-md font-medium shadow hover:bg-blue-600 active:bg-blue-700"
+      >
+        Play
+      </button>
+      <button
+        id="stop-button"
+        class="bg-red-500 text-white px-4 py-2 rounded-md font-medium shadow hover:bg-red-600 active:bg-red-700"
+      >
+        Stop
+      </button>
+      <button
+        id="inst-button"
+        class="bg-purple-500 text-white px-4 py-2 rounded-md font-medium shadow hover:bg-purple-600 active:bg-purple-700"
+      >
+        Inst
+      </button>
+      <div class="flex items-center gap-2">
+        <label for="tempo" class="text-sm font-medium text-gray-700"
+          >Tempo (BPM):</label
+        >
+        <input
+          type="number"
+          id="tempo"
+          value="120"
+          min="40"
+          max="300"
+          class="border border-gray-300 rounded-md p-1 w-20 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="rows" class="text-sm font-medium text-gray-700"
+          >Rows:</label
+        >
+        <input
+          type="number"
+          id="rows"
+          value="16"
+          min="4"
+          max="64"
+          step="4"
+          class="border border-gray-300 rounded-md p-1 w-16 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="current-row-display" class="text-sm font-mono text-gray-600"
+          >Row: 00</span
+        >
+      </div>
+      <div class="flex items-center gap-1">
+        <input
+          type="checkbox"
+          id="follow-checkbox"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          checked
+        />
+        <label
+          for="follow-checkbox"
+          class="text-sm font-medium text-gray-700 cursor-pointer select-none"
+          >Follow</label
+        >
+      </div>
+    </div>
+
+    <div
+      id="preamble-editor"
+      class="hidden bg-gray-100 p-4 rounded-lg shadow-md mb-6 w-full max-w-xl border border-gray-300"
+    >
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-medium text-gray-700">
+          Channel Settings:
+          <span id="preamble-channel-name" class="font-bold"></span>
+        </h3>
+        <button
+          id="preamble-close-btn"
+          class="text-xs bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded"
+        >
+          Close
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-3">
+        <div>
+          <label
+            for="preamble-channel-display-name"
+            class="block text-sm font-medium text-gray-600 mb-1"
+            >Display Name:</label
+          >
+          <input
+            type="text"
+            id="preamble-channel-display-name"
+            class="w-full p-1 border border-gray-300 rounded-md text-sm"
+            placeholder="Defaults to Instrument"
+          />
+        </div>
+        <div>
+          <label
+            for="preamble-channel-instrument-input"
+            class="block text-sm font-medium text-gray-600 mb-1"
+            >Instrument:</label
+          >
+          <input
+            type="text"
+            id="preamble-channel-instrument-input"
+            class="w-full p-1 border border-gray-300 rounded-md text-sm"
+            placeholder="Inst ID (e.g. Inst 0)"
+          />
+        </div>
+      </div>
+      <h4 class="text-md font-medium mb-1 text-gray-600">Preamble FX:</h4>
+      <div
+        id="preamble-fx-list"
+        class="space-y-1 mb-3 max-h-40 overflow-y-auto pr-2 border-t border-b border-gray-200 py-2"
+      ></div>
+      <div class="flex gap-2">
+        <button
+          id="preamble-add-btn"
+          title="Add FX Row"
+          class="text-xs bg-green-500 hover:bg-green-600 text-white font-bold px-2 py-1 rounded"
+        >
+          +
+        </button>
+        <button
+          id="preamble-remove-btn"
+          title="Remove Last FX Row"
+          class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold px-2 py-1 rounded"
+        >
+          -
+        </button>
+      </div>
+    </div>
+
+    <div
+      id="instrument-editor-modal"
+      class="modal hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40 flex items-center justify-center"
+    >
+      <div
+        class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-md mx-auto"
+      >
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-800">Instruments</h3>
+          <button
+            id="instrument-editor-close-btn"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div
+          id="instrument-list"
+          class="mb-4 max-h-60 overflow-y-auto border rounded p-2 space-y-1"
+        ></div>
+        <div class="flex gap-2">
+          <button
+            id="instrument-add-btn"
+            title="Add Instrument (Not Implemented)"
+            class="text-xs bg-green-500 hover:bg-green-600 text-white font-bold px-2 py-1 rounded opacity-50 cursor-not-allowed"
+          >
+            +
+          </button>
+          <button
+            id="instrument-remove-btn"
+            title="Remove Last Instrument (Not Implemented)"
+            class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold px-2 py-1 rounded opacity-50 cursor-not-allowed"
+          >
+            -
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="pattern-container"
+      class="pattern-container shadow-md rounded-lg p-2"
+    >
+      <table id="pattern-table" class="pattern-table">
+        <thead>
+          <tr></tr>
+        </thead>
+        <tbody id="pattern-body"></tbody>
+      </table>
+    </div>
+
+    <div id="message-area" class="mt-4 text-sm text-red-600 h-6"></div>
+
+    <script>
+      // =====================================================================
+      // == CORE / SHARED ==
+      // =====================================================================
+
+      // --- Constants ---
+      const TICKS_PER_ROW = 6;
+      // FX parameter constants moved into static class properties
+
+      // --- Classes ---
+      class RowData {
+        constructor() {
+          this.note = "---";
+          this.fx = null;
+        }
+      }
+      class Instrument {
+        static nextId = 0;
+        constructor(
+          name,
+          synthType,
+          synthConfig = {},
+          supportsSustain = false
+        ) {
+          this.id = Instrument.nextId++;
+          this.name = name;
+          this.synthType = synthType;
+          this.synthConfig = synthConfig;
+          this.supportsSustain = supportsSustain;
+          this.synthInstance = null;
+        }
+        createSynth() {
+          if (this.synthInstance) return;
+          try {
+            if (Tone[this.synthType]) {
+              this.synthInstance = new Tone[this.synthType](this.synthConfig);
+            } else {
+              console.error(`Unknown synth type: ${this.synthType}`);
+            }
+          } catch (error) {
+            console.error(
+              `Error creating synth ${this.synthType} for ${this.name}:`,
+              error
+            );
+            showMessage(`Error creating synth: ${this.name}`);
+          }
+        }
+        connectToChannelFX(channel) {
+          if (
+            !this.synthInstance ||
+            !channel.filterNode ||
+            !channel.vibratoNode ||
+            !channel.delayNode ||
+            !channel.reverbNode
+          ) {
+            console.error(
+              `Cannot connect ${this.name}: Synth or channel FX node missing.`
+            );
+            return;
+          }
+          try {
+            this.synthInstance.chain(
+              channel.filterNode,
+              channel.vibratoNode,
+              channel.delayNode,
+              channel.reverbNode
+            );
+          } catch (e) {
+            console.error("Error connecting synth chain", e);
+          }
+        }
+      }
+      class Channel {
+        static nextId = 0;
+        constructor(initialDisplayName = "", initialInstrumentId = 0) {
+          this.id = Channel.nextId++;
+          this.displayName = initialDisplayName;
+          this.currentInstrumentId = initialInstrumentId;
+          this.filterNode = null;
+          this.vibratoNode = null;
+          this.delayNode = null;
+          this.reverbNode = null;
+          this.rows = [];
+          this.preambleFx = [null];
+          const initialRows = parseInt(
+            document.getElementById("rows")?.value || "16",
+            10
+          );
+          this.resizeRows(initialRows);
+        }
+        initializeFxNodes() {
+          try {
+            this.filterNode = new Tone.Filter(
+              FilterCommand.MAX_FREQ,
+              "lowpass"
+            );
+            this.filterNode.Q.value = FilterCommand.DEFAULT_Q;
+            this.vibratoNode = new Tone.Vibrato(5, 0.1);
+            this.vibratoNode.wet.value = 0;
+            this.delayNode = new Tone.FeedbackDelay("8n", 0.5);
+            this.delayNode.wet.value = 0;
+            this.reverbNode = new Tone.Reverb({
+              decay: ReverbCommand.DEFAULT_DECAY,
+              preDelay: ReverbCommand.DEFAULT_PREDELAY,
+              wet: 0,
+            }).toDestination();
+          } catch (error) {
+            console.error(
+              `Error creating FX nodes for channel ${this.id}:`,
+              error
+            );
+            showMessage(`Error creating FX nodes`);
+          }
+        }
+        resizeRows(newRowCount) {
+          const currentLength = this.rows.length;
+          if (newRowCount > currentLength) {
+            for (let i = currentLength; i < newRowCount; i++) {
+              this.rows.push(new RowData());
+            }
+          } else if (newRowCount < currentLength) {
+            this.rows.length = newRowCount;
+          }
+          if (newRowCount > 0 && this.rows.length === 0) {
+            this.rows = Array(newRowCount)
+              .fill(null)
+              .map(() => new RowData());
+          } else if (newRowCount === 0) {
+            this.rows = [];
+          }
+        }
+        getRowData(rowIndex) {
+          if (rowIndex < 0 || rowIndex >= this.rows.length) {
+            return new RowData();
+          }
+          if (!this.rows[rowIndex]) {
+            this.rows[rowIndex] = new RowData();
+          }
+          return this.rows[rowIndex];
+        }
+        setRowData(rowIndex, noteValue, fxValue) {
+          if (rowIndex >= 0 && rowIndex < this.rows.length) {
+            const row = this.getRowData(rowIndex);
+            if (noteValue !== undefined) row.note = noteValue;
+            if (fxValue !== undefined) row.fx = fxValue;
+          }
+        }
+      }
+
+      // --- FX Command Classes (Added applyPreamble where needed) ---
+      class FxCommand {
+        toString() {
+          return "---";
+        }
+        toDisplayString() {
+          return this.toString();
+        }
+        // Default apply method (renamed from apply) - called during sequence step
+        applyStep(context) {}
+        // Optional: Method to apply command as initial state before sequence starts
+        applyPreamble(context) {
+          // By default, preamble does nothing unless overridden by subclass
+          // Or, maybe default to calling applyStep? Let's default to nothing.
+        }
+      }
+
+      class CutCommand extends FxCommand {
+        static prefix = "CUT";
+        static regex = /^CUT([0-9A-F])$/i;
+        constructor(tickValue) {
+          super();
+          this.tick = Math.max(0, Math.min(15, parseInt(tickValue, 16)));
+        }
+        applyStep(context) {
+          const {
+            synth,
+            time,
+            tickDurationSec,
+            ticksPerRow,
+            channel,
+            noteTriggeredThisRow,
+            channelIndex,
+          } = context;
+          if (!synth) return;
+          if (this.tick < ticksPerRow) {
+            const instrument = instruments.find(
+              (inst) => inst.id === channel.currentInstrumentId
+            );
+            const noteIsActive =
+              (instrument?.supportsSustain &&
+                channelActiveNotes[channelIndex] !== null) ||
+              noteTriggeredThisRow;
+            if (noteIsActive) {
+              const cutTime = time + this.tick * tickDurationSec;
+              synth.triggerRelease(cutTime);
+              if (instrument?.supportsSustain)
+                channelActiveNotes[channelIndex] = null;
+            }
+          }
+        }
+        // applyPreamble makes no sense for CUT
+        toString() {
+          return `CUT${this.tick.toString(16).toUpperCase()}`;
+        }
+        toDisplayString() {
+          return `CUT ${this.tick.toString(16).toUpperCase()}`;
+        }
+      }
+
+      class VolCommand extends FxCommand {
+        static prefix = "V";
+        static regex = /^V([+-])(\d{1,2})$/i;
+        static shorthandRegex = /^V0$/i;
+        static MIN_DB = -72;
+        static MAX_DB = 6;
+        constructor(sign, dbDigits) {
+          super();
+          let dbValue =
+            sign === "+" ? parseInt(dbDigits, 10) : -parseInt(dbDigits, 10);
+          this.db = Math.max(
+            VolCommand.MIN_DB,
+            Math.min(VolCommand.MAX_DB, dbValue)
+          );
+        }
+        _applyLogic(synth, time) {
+          if (synth?.volume) {
+            synth.volume.setValueAtTime(this.db, time);
+          }
+        }
+        applyStep(context) {
+          this._applyLogic(context.synth, context.time);
+        }
+        applyPreamble(context) {
+          this._applyLogic(context.synth, context.time);
+        } // Same logic for preamble
+        toString() {
+          return `V${this.db >= 0 ? "+" : "-"}${Math.abs(this.db)
+            .toString()
+            .padStart(2, "0")}`;
+        }
+        toDisplayString() {
+          return `V ${this.db >= 0 ? "+" : "-"}${Math.abs(this.db)
+            .toString()
+            .padStart(2, "0")}`;
+        }
+      }
+
+      class FadeVolCommand extends FxCommand {
+        static prefix = "FV";
+        static inputRegex = /^FV\s*([+-])\s*(\d{1,2})\s+([0-9A-F]{1,2})$/i;
+        static playbackRegex = /^FV([+-])(\d{1,2})([0-9A-F]{2})$/i;
+        static MIN_DB = -72;
+        static MAX_DB = 6;
+        constructor(sign, dbDigits, tickHex) {
+          super();
+          let dbValue =
+            sign === "+" ? parseInt(dbDigits, 10) : -parseInt(dbDigits, 10);
+          let tickValue = parseInt(tickHex, 16);
+          this.targetDb = Math.max(
+            FadeVolCommand.MIN_DB,
+            Math.min(FadeVolCommand.MAX_DB, dbValue)
+          );
+          this.ticks = Math.max(0, Math.min(255, tickValue));
+        }
+        applyStep(context) {
+          const { synth, time, tickDurationSec } = context;
+          if (!synth?.volume) return;
+          if (this.ticks === 0) {
+            synth.volume.cancelScheduledValues(time);
+            synth.volume.setValueAtTime(this.targetDb, time);
+            return;
+          }
+          const fadeDurationSec = this.ticks * tickDurationSec;
+          const rampEndTime = time + fadeDurationSec;
+          synth.volume.cancelScheduledValues(time);
+          synth.volume.linearRampToValueAtTime(this.targetDb, rampEndTime);
+        }
+        // applyPreamble makes no sense for FV
+        toString() {
+          return `FV${this.targetDb >= 0 ? "+" : "-"}${Math.abs(this.targetDb)
+            .toString()
+            .padStart(2, "0")}${this.ticks
+            .toString(16)
+            .toUpperCase()
+            .padStart(2, "0")}`;
+        }
+        toDisplayString() {
+          return `FV ${this.targetDb >= 0 ? "+" : "-"}${Math.abs(this.targetDb)
+            .toString()
+            .padStart(2, "0")} ${this.ticks
+            .toString(16)
+            .toUpperCase()
+            .padStart(2, "0")}`;
+        }
+      }
+
+      class DelayCommand extends FxCommand {
+        static prefix = "D";
+        static inputRegex = /^D\s+(\d+T?)\s+([0-9A-F]{1,2})$/i;
+        static DEFAULT_WET = 0.5;
+        constructor(timeString, feedbackHex) {
+          super();
+          this.timeString = timeString;
+          this.feedbackHex = feedbackHex.padStart(2, "0");
+          this.feedbackValue = Math.min(
+            0.95,
+            parseInt(this.feedbackHex, 16) / 255.0
+          );
+        }
+        _getTimeValue() {
+          const time = this.timeString.toUpperCase();
+          const isTriplet = time.endsWith("T");
+          const numStr = isTriplet ? time.slice(0, -1) : time;
+          const allowedDenominators = [
+            "1",
+            "2",
+            "4",
+            "8",
+            "16",
+            "32",
+            "64",
+            "0",
+          ];
+          if (allowedDenominators.includes(numStr)) {
+            if (numStr === "0") return "0";
+            return numStr + (isTriplet ? "t" : "n");
+          }
+          return "8n";
+        }
+        _applyLogic(context, useRamp) {
+          const { channel, time } = context;
+          const delayNode = channel.delayNode;
+          if (!delayNode) return;
+          const isOffCommand =
+            this.timeString === "0" && this.feedbackHex === "00";
+          const targetWet = isOffCommand
+            ? 0
+            : Math.min(DelayCommand.DEFAULT_WET, this.feedbackValue * 0.5);
+          if (!isOffCommand) {
+            const timeValue = this._getTimeValue();
+            delayNode.delayTime.setValueAtTime(timeValue, time);
+            delayNode.feedback.setValueAtTime(this.feedbackValue, time);
+          }
+          if (useRamp) {
+            delayNode.wet.linearRampToValueAtTime(targetWet, 0.05, time);
+          } else {
+            delayNode.wet.setValueAtTime(targetWet, time);
+          }
+        }
+        applyStep(context) {
+          this._applyLogic(context, true);
+        } // Use ramp during step
+        applyPreamble(context) {
+          this._applyLogic(context, false);
+        } // Set value directly in preamble
+        toString() {
+          return this.toDisplayString();
+        }
+        toDisplayString() {
+          return `D ${this.timeString.toUpperCase()} ${this.feedbackHex.toUpperCase()}`;
+        }
+      }
+
+      class FilterCommand extends FxCommand {
+        static prefix = "F";
+        static inputRegex =
+          /^F\s+(\d{1,2}(?:\.\d{1,2})?)(?:\s+(\d{1,2}(?:\.\d{1,2})?))?$/i;
+        static MIN_FREQ = 20;
+        static MAX_FREQ = 20000;
+        static MIN_Q = 0.1;
+        static MAX_Q = 20;
+        static DEFAULT_Q = 1;
+        constructor(cutoffString, resonanceString) {
+          super();
+          let cutoff = parseFloat(cutoffString);
+          cutoff = isNaN(cutoff)
+            ? FilterCommand.MAX_FREQ
+            : Math.max(0, Math.min(20.0, cutoff));
+          this.frequencyHz = Math.max(FilterCommand.MIN_FREQ, cutoff * 1000);
+          let resonance = FilterCommand.DEFAULT_Q;
+          if (resonanceString !== undefined) {
+            let parsedQ = parseFloat(resonanceString);
+            if (!isNaN(parsedQ)) {
+              resonance = Math.max(
+                FilterCommand.MIN_Q,
+                Math.min(FilterCommand.MAX_Q, parsedQ)
+              );
+            }
+          }
+          this.resonanceQ = resonance;
+        }
+        _applyLogic(context) {
+          const { channel, time } = context;
+          const filterNode = channel.filterNode;
+          if (!filterNode) return;
+          filterNode.frequency.setValueAtTime(this.frequencyHz, time);
+          filterNode.Q.setValueAtTime(this.resonanceQ, time);
+        }
+        applyStep(context) {
+          this._applyLogic(context);
+        }
+        applyPreamble(context) {
+          this._applyLogic(context);
+        } // Same logic for preamble
+        toDisplayString() {
+          const cutoffKhz = (this.frequencyHz / 1000).toFixed(
+            this.frequencyHz % 1000 !== 0 ? 2 : 0
+          );
+          const resonanceQ = this.resonanceQ.toFixed(
+            this.resonanceQ % 1 !== 0 ? 1 : 0
+          );
+          return `F ${cutoffKhz} ${resonanceQ}`;
+        }
+        toString() {
+          return this.toDisplayString();
+        }
+      }
+
+      class VibratoCommand extends FxCommand {
+        static prefix = "VIB";
+        static inputRegex = /^VIB\s+(\d*\.?\d+)\s+(\d*\.?\d+)$/i;
+        static shorthandOffRegex = /^VIB0$/i;
+        static MIN_FREQ = 0;
+        static MAX_FREQ = 999;
+        static MIN_DEPTH = 0.0;
+        static MAX_DEPTH = 1.0;
+        constructor(freqString, depthString) {
+          super();
+          let freq = parseFloat(freqString);
+          let depth = parseFloat(depthString);
+          freq = isNaN(freq)
+            ? 0
+            : Math.max(
+                VibratoCommand.MIN_FREQ,
+                Math.min(VibratoCommand.MAX_FREQ, freq)
+              );
+          this.frequency = freq;
+          depth = isNaN(depth)
+            ? 0
+            : Math.max(
+                VibratoCommand.MIN_DEPTH,
+                Math.min(VibratoCommand.MAX_DEPTH, depth)
+              );
+          this.depth = depth;
+        }
+        _applyLogic(context, useRamp) {
+          const { channel, time } = context;
+          const vibratoNode = channel.vibratoNode;
+          if (!vibratoNode) return;
+          vibratoNode.frequency.setValueAtTime(this.frequency, time);
+          vibratoNode.depth.setValueAtTime(this.depth, time);
+          const targetWetLevel = this.frequency > 0 && this.depth > 0 ? 1 : 0;
+          if (useRamp) {
+            vibratoNode.wet.linearRampToValueAtTime(targetWetLevel, 0.05, time);
+          } else {
+            vibratoNode.wet.setValueAtTime(targetWetLevel, time);
+          }
+        }
+        applyStep(context) {
+          this._applyLogic(context, true);
+        } // Use ramp during step
+        applyPreamble(context) {
+          this._applyLogic(context, false);
+        } // Set value directly in preamble
+        toDisplayString() {
+          const freqStr = this.frequency.toFixed(
+            this.frequency % 1 !== 0 ? 1 : 0
+          );
+          const depthStr = this.depth.toFixed(this.depth % 1 !== 0 ? 2 : 1);
+          if (this.frequency === 0 && this.depth === 0) return "VIB 0";
+          return `VIB ${freqStr} ${depthStr}`;
+        }
+        toString() {
+          return this.toDisplayString();
+        }
+      }
+
+      class ReverbCommand extends FxCommand {
+        static prefix = "REV";
+        static DEFAULT_DECAY = 1.5;
+        static DEFAULT_PREDELAY = 0.01;
+        static DEFAULT_WET = 0.5;
+        static MIN_DECAY = 0.01;
+        static MAX_DECAY = 20.0;
+        static MIN_PREDELAY = 0.0;
+        static MAX_PREDELAY = 0.5;
+        static MIN_WET = 0.0;
+        static MAX_WET = 1.0;
+        constructor(decay, preDelay, wet) {
+          super();
+          this.decay = isNaN(decay)
+            ? ReverbCommand.DEFAULT_DECAY
+            : Math.max(
+                ReverbCommand.MIN_DECAY,
+                Math.min(ReverbCommand.MAX_DECAY, decay)
+              );
+          this.preDelay = isNaN(preDelay)
+            ? ReverbCommand.DEFAULT_PREDELAY
+            : Math.max(
+                ReverbCommand.MIN_PREDELAY,
+                Math.min(ReverbCommand.MAX_PREDELAY, preDelay)
+              );
+          this.wet = isNaN(wet)
+            ? ReverbCommand.DEFAULT_WET
+            : Math.max(
+                ReverbCommand.MIN_WET,
+                Math.min(ReverbCommand.MAX_WET, wet)
+              );
+          if (decay === 0) {
+            this.wet = 0;
+            this.decay = ReverbCommand.DEFAULT_DECAY;
+            this.preDelay = ReverbCommand.DEFAULT_PREDELAY;
+          }
+        }
+        _applyLogic(context, useRamp) {
+          const { channel, time } = context;
+          const reverbNode = channel.reverbNode;
+          if (!reverbNode) return;
+          const isOffCommand =
+            this.wet === 0 &&
+            this.decay === ReverbCommand.DEFAULT_DECAY &&
+            this.preDelay === ReverbCommand.DEFAULT_PREDELAY;
+          const targetWet = isOffCommand ? 0 : this.wet;
+          if (!isOffCommand) {
+            reverbNode.decay = this.decay;
+            reverbNode.preDelay = this.preDelay;
+          }
+          if (useRamp) {
+            reverbNode.wet.linearRampToValueAtTime(targetWet, 0.05, time);
+          } else {
+            reverbNode.wet.setValueAtTime(targetWet, time);
+          }
+        }
+        applyStep(context) {
+          this._applyLogic(context, true);
+        } // Use ramp during step
+        applyPreamble(context) {
+          this._applyLogic(context, false);
+        } // Set value directly in preamble
+        toDisplayString() {
+          if (
+            this.wet === 0 &&
+            this.decay === ReverbCommand.DEFAULT_DECAY &&
+            this.preDelay === ReverbCommand.DEFAULT_PREDELAY
+          ) {
+            return "Rev 0";
+          }
+          let parts = ["Rev", this.decay.toFixed(2)];
+          if (
+            Math.abs(this.preDelay - ReverbCommand.DEFAULT_PREDELAY) > 0.001
+          ) {
+            parts.push(`p${this.preDelay.toFixed(2)}`);
+          }
+          if (Math.abs(this.wet - ReverbCommand.DEFAULT_WET) > 0.001) {
+            parts.push(`w${this.wet.toFixed(2)}`);
+          }
+          return parts.join(" ");
+        }
+        toString() {
+          return this.toDisplayString();
+        }
+      }
+
+      // --- FX Command Parser ---
+      function parseFxString(fxString, rawInputString) {
+        /* ... (implementation unchanged) ... */ if (
+          !fxString ||
+          fxString === "---"
+        ) {
+          return null;
+        }
+        let match;
+        const upperRaw = rawInputString.toUpperCase();
+        const upperClean = fxString;
+        if (VolCommand.shorthandRegex.test(upperClean)) {
+          return new VolCommand("+", "0");
+        }
+        if (upperClean === "C") {
+          return new CutCommand("0");
+        }
+        if (VibratoCommand.shorthandOffRegex.test(upperClean)) {
+          return new VibratoCommand("0", "0");
+        }
+        match = upperClean.match(VolCommand.regex);
+        if (match) {
+          return new VolCommand(match[1], match[2]);
+        }
+        if (upperClean === CutCommand.prefix) {
+          return new CutCommand("0");
+        }
+        match = upperClean.match(CutCommand.regex);
+        if (match) {
+          return new CutCommand(match[1]);
+        }
+        match = upperRaw.match(FadeVolCommand.inputRegex);
+        if (match) {
+          return new FadeVolCommand(match[1], match[2], match[3]);
+        }
+        match = upperRaw.match(DelayCommand.inputRegex);
+        if (match) {
+          return new DelayCommand(match[1], match[2]);
+        }
+        match = upperRaw.match(FilterCommand.inputRegex);
+        if (match) {
+          return new FilterCommand(match[1], match[2]);
+        }
+        match = upperRaw.match(VibratoCommand.inputRegex);
+        if (match) {
+          return new VibratoCommand(match[1], match[2]);
+        }
+        if (upperRaw.startsWith("REV")) {
+          const tokens = upperRaw.split(/\s+/).filter((t) => t !== "");
+          if (tokens.length >= 2) {
+            const decayVal = parseFloat(tokens[1]);
+            if (tokens.length === 2 && decayVal === 0) {
+              return new ReverbCommand(0, ReverbCommand.DEFAULT_PREDELAY, 0);
+            }
+            if (!isNaN(decayVal)) {
+              let preDelay = ReverbCommand.DEFAULT_PREDELAY;
+              let wet = ReverbCommand.DEFAULT_WET;
+              for (let i = 2; i < tokens.length; i++) {
+                const token = tokens[i];
+                if (token.startsWith("P") && token.length > 1) {
+                  const pVal = parseFloat(token.substring(1));
+                  if (!isNaN(pVal)) preDelay = pVal;
+                } else if (token.startsWith("W") && token.length > 1) {
+                  const wVal = parseFloat(token.substring(1));
+                  if (!isNaN(wVal)) wet = wVal;
+                }
+              }
+              return new ReverbCommand(decayVal, preDelay, wet);
+            }
+          }
+        }
+        return null;
+      }
+
+      // =====================================================================
+      // == FRONTEND (UI Elements, Interaction, Display Logic) ==
+      // =====================================================================
+      const patternBody = document.getElementById("pattern-body");
+      const patternContainer = document.getElementById("pattern-container");
+      const playButton = document.getElementById("play-button");
+      const stopButton = document.getElementById("stop-button");
+      const instButton = document.getElementById("inst-button");
+      const tempoInput = document.getElementById("tempo");
+      const rowsInput = document.getElementById("rows");
+      const currentRowDisplay = document.getElementById("current-row-display");
+      const messageArea = document.getElementById("message-area");
+      const followCheckbox = document.getElementById("follow-checkbox");
+      const preambleEditor = document.getElementById("preamble-editor");
+      const preambleChannelName = document.getElementById(
+        "preamble-channel-name"
+      );
+      const preambleChannelDisplayNameInput = document.getElementById(
+        "preamble-channel-display-name"
+      );
+      const preambleChannelInstrumentInput = document.getElementById(
+        "preamble-channel-instrument-input"
+      );
+      const preambleFxList = document.getElementById("preamble-fx-list");
+      const preambleAddBtn = document.getElementById("preamble-add-btn");
+      const preambleRemoveBtn = document.getElementById("preamble-remove-btn");
+      const preambleCloseBtn = document.getElementById("preamble-close-btn");
+      const instrumentEditorModal = document.getElementById(
+        "instrument-editor-modal"
+      );
+      const instrumentListDiv = document.getElementById("instrument-list");
+      const instrumentAddBtn = document.getElementById("instrument-add-btn");
+      const instrumentRemoveBtn = document.getElementById(
+        "instrument-remove-btn"
+      );
+      const instrumentEditorCloseBtn = document.getElementById(
+        "instrument-editor-close-btn"
+      );
+      let followPlayback = followCheckbox?.checked ?? true;
+      let editingPreambleChannelIndex = -1;
+
+      function createCellInput(
+        row,
+        col,
+        channelIndex,
+        isEffectCell,
+        initialValue
+      ) {
+        /* ... (implementation unchanged) ... */ const input =
+          document.createElement("input");
+        input.type = "text";
+        input.classList.add(isEffectCell ? "effect-cell" : "pattern-cell");
+        input.classList.add(
+          `channel-${channelIndex}${isEffectCell ? "-fx" : ""}`
+        );
+        input.dataset.row = row;
+        input.dataset.col = col;
+        input.dataset.channelIndex = channelIndex;
+        input.value =
+          initialValue instanceof FxCommand &&
+          typeof initialValue.toDisplayString === "function"
+            ? initialValue.toDisplayString()
+            : initialValue === null
+            ? "---"
+            : initialValue;
+        input.maxLength = isEffectCell ? 12 : 3;
+        input.addEventListener("change", handleCellChange);
+        input.addEventListener("focus", (e) => e.target.select());
+        return input;
+      }
+      function generatePatternGrid() {
+        /* ... (implementation unchanged) ... */ const patternTable =
+          document.getElementById("pattern-table");
+        const thead = patternTable.querySelector("thead tr");
+        const tbody = patternBody;
+        const numInstruments = channels.length;
+        const numDataColumns = numInstruments * 2;
+        channels.forEach((channel) => channel.resizeRows(totalRows));
+        thead.innerHTML = "";
+        const rowNumHead = document.createElement("th");
+        rowNumHead.classList.add("row-number", "px-2", "header-cell");
+        rowNumHead.textContent = "Row";
+        thead.appendChild(rowNumHead);
+        channels.forEach((channel, index) => {
+          const th = document.createElement("th");
+          th.classList.add("header-cell");
+          th.setAttribute("colspan", "2");
+          const currentInstrument = instruments.find(
+            (inst) => inst.id === channel.currentInstrumentId
+          );
+          th.textContent =
+            channel.displayName || currentInstrument?.name || `Ch ${index}`;
+          th.dataset.channelIndex = index;
+          th.addEventListener("click", handleHeaderClick);
+          thead.appendChild(th);
+        });
+        tbody.innerHTML = "";
+        for (let i = 0; i < totalRows; i++) {
+          const row = document.createElement("tr");
+          row.id = `row-${i}`;
+          if (i > 0 && i % 16 === 0) {
+            row.classList.add("bar-line");
+          } else if (i > 0 && i % 4 === 0) {
+            row.classList.add("beat-line");
+          }
+          const rowNumCell = document.createElement("td");
+          rowNumCell.classList.add("row-number");
+          rowNumCell.textContent = i.toString().padStart(2, "0");
+          row.appendChild(rowNumCell);
+          for (let instIndex = 0; instIndex < numInstruments; instIndex++) {
+            const channel = channels[instIndex];
+            const rowData = channel.getRowData(i);
+            const noteColIndex = instIndex * 2;
+            const fxColIndex = noteColIndex + 1;
+            const noteCell = document.createElement("td");
+            const noteInput = createCellInput(
+              i,
+              noteColIndex,
+              instIndex,
+              false,
+              rowData.note
+            );
+            noteCell.appendChild(noteInput);
+            row.appendChild(noteCell);
+            const fxCell = document.createElement("td");
+            const fxInput = createCellInput(
+              i,
+              fxColIndex,
+              instIndex,
+              true,
+              rowData.fx
+            );
+            fxCell.appendChild(fxInput);
+            row.appendChild(fxCell);
+          }
+          tbody.appendChild(row);
+        }
+      }
+      function handleCellChange(event) {
+        /* ... (implementation unchanged) ... */ const input = event.target;
+        const row = parseInt(input.dataset.row, 10);
+        const col = parseInt(input.dataset.col, 10);
+        const channelIndex = parseInt(input.dataset.channelIndex, 10);
+        if (channelIndex === undefined || channelIndex >= channels.length)
+          return;
+        const channel = channels[channelIndex];
+        let rawValue = input.value;
+        const isEffectColumn = col % 2 !== 0;
+        let finalStoredValue = null;
+        let displayValue = "---";
+        if (isEffectColumn) input.classList.remove("input-error");
+        if (isEffectColumn) {
+          let cleanedValue = rawValue.replace(/\s+/g, "").toUpperCase();
+          if (rawValue.trim() === "") cleanedValue = "---";
+          const commandInstance = parseFxString(cleanedValue, rawValue);
+          if (commandInstance) {
+            finalStoredValue = commandInstance;
+            displayValue = commandInstance.toDisplayString();
+            if (commandInstance instanceof FadeVolCommand) {
+              const ticksLeft = (totalRows - row) * TICKS_PER_ROW;
+              if (commandInstance.ticks > ticksLeft) {
+                input?.classList.add("input-error");
+              }
+            }
+          } else if (rawValue.trim() !== "" && rawValue.trim() !== "---") {
+            finalStoredValue = null;
+            displayValue = "---";
+          } else {
+            finalStoredValue = null;
+            displayValue = "---";
+          }
+          channel.setRowData(row, undefined, finalStoredValue);
+        } else {
+          let noWhitespaceValue = rawValue.replace(/\s+/g, "");
+          let value = noWhitespaceValue.toUpperCase();
+          if (value === "") {
+            value = "---";
+          }
+          if (value === "O") {
+            value = "OFF";
+          }
+          const currentInstrument = instruments.find(
+            (inst) => inst.id === channel.currentInstrumentId
+          );
+          const currentSynthType = currentInstrument?.synthType;
+          if (currentSynthType === "MembraneSynth") {
+            if (value === "K") {
+              value = "KIK";
+            } else if (value === "T") {
+              value = "TOM";
+            }
+          }
+          if (currentSynthType === "NoiseSynth") {
+            if (value === "X" || value === "XX") {
+              value = "XXX";
+            }
+          }
+          switch (currentSynthType) {
+            case "Synth":
+              if (value !== "---" && value !== "OFF" && !isValidNote(value)) {
+                value = "---";
+              }
+              break;
+            case "NoiseSynth":
+              if (value !== "---" && value !== "XXX") {
+                value = "---";
+              }
+              break;
+            case "MembraneSynth":
+              const validDrumCommands = ["KIK", "TOM"];
+              if (value !== "---" && !validDrumCommands.includes(value)) {
+                value = "---";
+              }
+              break;
+            default:
+              if (value !== "---") value = "---";
+          }
+          finalStoredValue = value;
+          displayValue = finalStoredValue;
+          channel.setRowData(row, finalStoredValue, undefined);
+        }
+        if (input) input.value = displayValue;
+      }
+      function renderPreambleEditor() {
+        /* ... (implementation unchanged) ... */ if (
+          editingPreambleChannelIndex < 0 ||
+          editingPreambleChannelIndex >= channels.length
+        ) {
+          preambleEditor.classList.add("hidden");
+          return;
+        }
+        const channel = channels[editingPreambleChannelIndex];
+        const currentInstrument = instruments.find(
+          (inst) => inst.id === channel.currentInstrumentId
+        );
+        preambleChannelName.textContent =
+          channel.name || `Channel ${channel.id}`;
+        preambleChannelDisplayNameInput.value = channel.displayName;
+        preambleChannelInstrumentInput.value = `Inst ${channel.currentInstrumentId
+          .toString()
+          .padStart(2, "0")}`;
+        preambleFxList.innerHTML = "";
+        channel.preambleFx.forEach((command, index) => {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.classList.add("preamble-fx-input", "w-full", "mb-1");
+          input.dataset.index = index;
+          input.maxLength = 12;
+          input.value =
+            command instanceof FxCommand &&
+            typeof command.toDisplayString === "function"
+              ? command.toDisplayString()
+              : "---";
+          input.addEventListener("change", handlePreambleChange);
+          input.addEventListener("focus", (e) => e.target.select());
+          preambleFxList.appendChild(input);
+        });
+        preambleEditor.classList.remove("hidden");
+      }
+      function handleHeaderClick(event) {
+        /* ... (implementation unchanged) ... */ const clickedIndex = parseInt(
+          event.currentTarget.dataset.channelIndex,
+          10
+        );
+        if (!isNaN(clickedIndex)) {
+          editingPreambleChannelIndex = clickedIndex;
+          renderPreambleEditor();
+        }
+      }
+      function handlePreambleChange(event) {
+        /* ... (implementation unchanged) ... */ if (
+          editingPreambleChannelIndex < 0
+        )
+          return;
+        const input = event.target;
+        const preambleIndex = parseInt(input.dataset.index, 10);
+        const channel = channels[editingPreambleChannelIndex];
+        const rawValue = input.value;
+        if (isNaN(preambleIndex) || preambleIndex >= channel.preambleFx.length)
+          return;
+        let cleanedValue = rawValue.replace(/\s+/g, "").toUpperCase();
+        if (rawValue.trim() === "") cleanedValue = "---";
+        const commandInstance = parseFxString(cleanedValue, rawValue);
+        channel.preambleFx[preambleIndex] = commandInstance;
+        input.value = commandInstance
+          ? commandInstance.toDisplayString()
+          : "---";
+        input.classList.remove("input-error");
+      }
+      function handlePreambleInstrumentChange(event) {
+        /* ... (implementation unchanged) ... */ if (
+          editingPreambleChannelIndex < 0
+        )
+          return;
+        const input = event.target;
+        const channel = channels[editingPreambleChannelIndex];
+        const rawValue = input.value;
+        let currentDisplay = `Inst ${channel.currentInstrumentId
+          .toString()
+          .padStart(2, "0")}`;
+        const match = rawValue.match(/^INST(\d+)$/i);
+        if (match) {
+          const requestedInstId = parseInt(match[1], 10);
+          if (instruments.some((inst) => inst.id === requestedInstId)) {
+            channel.currentInstrumentId = requestedInstId;
+            currentDisplay = `Inst ${channel.currentInstrumentId
+              .toString()
+              .padStart(2, "0")}`;
+            const headerCell = document.querySelector(
+              `thead th[data-channel-index="${editingPreambleChannelIndex}"]`
+            );
+            if (headerCell) {
+              const currentInstrument = instruments.find(
+                (inst) => inst.id === channel.currentInstrumentId
+              );
+              headerCell.textContent =
+                channel.displayName ||
+                currentInstrument?.name ||
+                `Ch ${editingPreambleChannelIndex}`;
+            }
+          } else {
+            showMessage(`Instrument ID ${requestedInstId} not found.`);
+          }
+        } else if (rawValue.trim() !== "" && rawValue.trim() !== "---") {
+          showMessage(`Invalid instrument format. Use 'Inst n'.`);
+        }
+        input.value = currentDisplay;
+      }
+      function renderInstrumentEditor() {
+        /* ... (implementation unchanged) ... */ instrumentListDiv.innerHTML =
+          "";
+        instruments.forEach((inst) => {
+          const item = document.createElement("div");
+          item.classList.add(
+            "p-1",
+            "border-b",
+            "text-sm",
+            "cursor-pointer",
+            "hover:bg-gray-100"
+          );
+          item.textContent = `[${inst.id.toString().padStart(2, "0")}] ${
+            inst.name
+          }`;
+          item.dataset.instrumentId = inst.id;
+          instrumentListDiv.appendChild(item);
+        });
+        instrumentEditorModal.classList.remove("hidden");
+      }
+      function closeInstrumentEditor() {
+        instrumentEditorModal.classList.add("hidden");
+      }
+      function updatePlayButtonUI(showPlayingState) {
+        /* ... (implementation unchanged) ... */ if (showPlayingState) {
+          playButton.textContent = "Pause";
+          playButton.classList.replace("bg-blue-500", "bg-yellow-500");
+          playButton.classList.replace(
+            "hover:bg-blue-600",
+            "hover:bg-yellow-600"
+          );
+          playButton.classList.replace(
+            "active:bg-blue-700",
+            "active:bg-yellow-700"
+          );
+        } else {
+          playButton.textContent = "Play";
+          playButton.classList.replace("bg-yellow-500", "bg-blue-500");
+          playButton.classList.replace(
+            "hover:bg-yellow-600",
+            "hover:bg-blue-600"
+          );
+          playButton.classList.replace(
+            "active:bg-yellow-700",
+            "active:bg-blue-700"
+          );
+        }
+      }
+      function updateUIForPlayback(rowIndex) {
+        /* ... (implementation unchanged) ... */ const prevPlayingRow =
+          patternBody.querySelector(".playing-row");
+        if (prevPlayingRow) prevPlayingRow.classList.remove("playing-row");
+        if (rowIndex >= 0 && rowIndex < totalRows) {
+          const currentRowElement = document.getElementById(`row-${rowIndex}`);
+          if (currentRowElement) {
+            currentRowElement.classList.add("playing-row");
+            if (followPlayback) {
+              currentRowElement.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "nearest",
+              });
+            }
+          }
+          updateCurrentRowDisplay(rowIndex);
+        } else {
+          updateCurrentRowDisplay(0);
+        }
+      }
+      function updateCurrentRowDisplay(rowNum) {
+        /* ... (implementation unchanged) ... */ currentRowDisplay.textContent = `Row: ${rowNum
+          .toString()
+          .padStart(2, "0")}`;
+      }
+      function showMessage(text) {
+        /* ... (implementation unchanged) ... */ messageArea.textContent = text;
+      }
+
+      // =====================================================================
+      // == BACKEND (Data, State, Audio Logic) ==
+      // =====================================================================
+
+      // --- State Variables ---
+      let instruments = [
+        new Instrument(
+          "Square Wave",
+          "Synth",
+          {
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.2 },
+          },
+          true
+        ),
+        new Instrument(
+          "Triangle Wave",
+          "Synth",
+          {
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.2 },
+          },
+          true
+        ),
+        new Instrument(
+          "Noise",
+          "NoiseSynth",
+          {
+            noise: { type: "white" },
+            envelope: { attack: 0.005, decay: 0.05, sustain: 0, release: 0.1 },
+          },
+          false
+        ),
+        new Instrument(
+          "Drum",
+          "MembraneSynth",
+          {
+            pitchDecay: 0.03,
+            octaves: 6,
+            oscillator: { type: "sine" },
+            envelope: {
+              attack: 0.001,
+              decay: 0.3,
+              sustain: 0.01,
+              release: 0.2,
+            },
+          },
+          false
+        ),
+      ];
+      let channels = [
+        new Channel("Ch 1", instruments[0].id),
+        new Channel("Ch 2", instruments[1].id),
+        new Channel("Ch 3", instruments[2].id),
+        new Channel("Ch 4", instruments[3].id),
+      ];
+      let sequence;
+      let currentRow = 0;
+      let totalRows = parseInt(rowsInput?.value || "16", 10);
+      let isPlaying = false;
+      let toneStarted = false;
+      let channelActiveNotes = Array(channels.length).fill(null);
+
+      // --- Audio Setup & Playback Functions ---
+      async function setupInstruments() {
+        /* ... (implementation unchanged) ... */ if (toneStarted) return;
+        try {
+          await Tone.start();
+          instruments.forEach((inst) => inst.createSynth());
+          channels.forEach((channel) => channel.initializeFxNodes());
+          channels.forEach((channel) => {
+            const initialInstrument = instruments.find(
+              (inst) => inst.id === channel.currentInstrumentId
+            );
+            initialInstrument?.connectToChannelFX(channel);
+            if (initialInstrument?.synthType === "MembraneSynth") {
+              initialInstrument.synthInstance.volume.value = 0;
+            }
+          });
+          Tone.Transport.bpm.value = parseInt(tempoInput.value, 10);
+          toneStarted = true;
+          showMessage("");
+        } catch (error) {
+          showMessage("Error starting audio/instruments.");
+          toneStarted = false;
+        }
+      }
+
+      /** Creates the main Tone.Sequence for playback */
+      function createSequence() {
+        if (!toneStarted) {
+          return;
+        }
+        if (sequence) {
+          sequence.dispose();
+          sequence = null;
+        }
+        const numChannels = channels.length;
+        channelActiveNotes = Array(numChannels).fill(null);
+        const indices = Array.from({ length: totalRows }, (_, i) => i);
+        const rowDurationSec = Tone.Time("16n").toSeconds();
+        const tickDurationSec = rowDurationSec / TICKS_PER_ROW;
+
+        sequence = new Tone.Sequence(
+          (time, index) => { 
+            currentRow = index;
+            channels.forEach((channel, chIndex) => {
+              const instrument = instruments.find(
+                (inst) => inst.id === channel.currentInstrumentId
+              );
+              if (!instrument?.synthInstance) return;
+              const synth = instrument.synthInstance;
+              const rowData = channel.getRowData(index);
+              const noteValue = rowData.note;
+              const command = rowData.fx; // Command object or null
+              let noteTriggeredThisRow = false;
+
+              // 1. Process Note/Command Column
+              switch (instrument.synthType) {
+                /* ... Note triggering logic ... */ case "Synth":
+                  if (isValidNote(noteValue)) {
+                    if (channelActiveNotes[chIndex]) {
+                      synth.triggerRelease(time);
+                    }
+                    synth.triggerAttack(noteValue, time);
+                    channelActiveNotes[chIndex] = noteValue;
+                    noteTriggeredThisRow = true;
+                  } else if (noteValue === "OFF") {
+                    if (channelActiveNotes[chIndex]) {
+                      synth.triggerRelease(time);
+                      channelActiveNotes[chIndex] = null;
+                    }
+                  }
+                  break;
+                case "NoiseSynth":
+                  if (noteValue === "XXX") {
+                    synth.triggerAttack(time);
+                    noteTriggeredThisRow = true;
+                  }
+                  break;
+                case "MembraneSynth":
+                  if (noteValue === "KIK") {
+                    synth.triggerAttackRelease("C1", "8n", time);
+                    noteTriggeredThisRow = true;
+                  } else if (noteValue === "TOM") {
+                    synth.triggerAttackRelease("G1", "8n", time);
+                    noteTriggeredThisRow = true;
+                  }
+                  break;
+              }
+
+              // 2. Process FX Column - Execute command object's applyStep method
+              if (
+                command instanceof FxCommand &&
+                typeof command.applyStep === "function"
+              ) {
+                const context = {
+                  synth: synth,
+                  time: time,
+                  tickDurationSec: tickDurationSec,
+                  ticksPerRow: TICKS_PER_ROW,
+                  channel: channel,
+                  rowData: rowData,
+                  noteTriggeredThisRow: noteTriggeredThisRow,
+                  instrument: instrument,
+                  channelIndex: chIndex,
+                };
+                try {
+                  command.applyStep(context);
+                } catch (e) {
+                  console.error(
+                    `Error applying command ${command.constructor.name} on row ${index}, ch ${chIndex}:`,
+                    e
+                  );
+                }
+              }
+            });
+            Tone.Draw.schedule(() => {
+              updateUIForPlayback(index);
+            }, time);
+          },
+          indices,
+          "16n"
+        );
+        sequence.loop = true;
+      }
+
+      /** Starts or resumes playback, executing preamble first. (UPDATED) */
+      async function play() {
+        if (!toneStarted) {
+          await setupInstruments();
+          if (!toneStarted) {
+            showMessage("Audio context error.");
+            return;
+          }
+        }
+        if (isPlaying) {
+          pause();
+          return;
+        }
+
+        // Execute Preamble Commands using applyPreamble
+        const now = Tone.now();
+        const PreambleDelay = 0.05; // Schedule slightly ahead
+        channels.forEach((channel, chIndex) => {
+          const initialInstrument = instruments.find(
+            (inst) => inst.id === channel.currentInstrumentId
+          );
+          const synth = initialInstrument?.synthInstance;
+          if (!synth) return;
+          channel.preambleFx.forEach((command, fxIndex) => {
+            // Check for the applyPreamble method specifically
+            if (
+              command instanceof FxCommand &&
+              typeof command.applyPreamble === "function"
+            ) {
+              const context = {
+                synth: synth,
+                time: now + PreambleDelay,
+                channel: channel,
+                instrument: initialInstrument,
+                channelIndex: chIndex,
+              };
+              try {
+                command.applyPreamble(context);
+              } catch (e) {
+                console.error(
+                  `Error applying preamble command ${fxIndex} for ch ${chIndex}:`,
+                  e
+                );
+              }
+            }
+          });
+        });
+
+        createSequence(); // Create main pattern sequence
+        if (sequence) {
+          Tone.Transport.start(now + PreambleDelay + 0.05); // Start transport after scheduling preamble
+          sequence.start(0);
+          isPlaying = true;
+          updatePlayButtonUI(true);
+          showMessage("");
+        } else {
+          showMessage("Playback error.");
+        }
+      }
+
+      function pause() {
+        /* ... (implementation unchanged) ... */ if (!isPlaying) return;
+        Tone.Transport.pause();
+        isPlaying = false;
+        updatePlayButtonUI(false);
+      }
+      function stop() {
+        /* ... (implementation unchanged) ... */ if (sequence) {
+          sequence.stop(0);
+          sequence.dispose();
+          sequence = null;
+        }
+        Tone.Transport.stop();
+        Tone.Transport.position = 0;
+        currentRow = 0;
+        updateUIForPlayback(-1);
+        updateCurrentRowDisplay(0);
+        isPlaying = false;
+        updatePlayButtonUI(false);
+        showMessage("");
+        if (toneStarted) {
+          channels.forEach((channel) => {
+            const lastInstrument = instruments.find(
+              (inst) => inst.id === channel.currentInstrumentId
+            );
+            if (
+              lastInstrument?.supportsSustain &&
+              lastInstrument?.synthInstance
+            ) {
+              try {
+                lastInstrument.synthInstance.triggerRelease(Tone.now());
+              } catch (e) {
+                /* Ignore errors on stop */
+              }
+            }
+            if (channel.filterNode) {
+              /* Reset filter? */
+            }
+            if (channel.vibratoNode) {
+              channel.vibratoNode.wet.value = 0;
+            }
+            if (channel.delayNode) {
+              channel.delayNode.wet.value = 0;
+            }
+            if (channel.reverbNode) {
+              channel.reverbNode.wet.value = 0;
+            }
+          });
+          channelActiveNotes = Array(channels.length).fill(null);
+        }
+      }
+      function isValidNote(noteString) {
+        /* ... (implementation unchanged) ... */ return /^[A-G][#B]?\d$/.test(
+          noteString.toUpperCase()
+        );
+      }
+
+      // =====================================================================
+      // == EVENT LISTENERS & INITIALIZATION ==
+      // =====================================================================
+      playButton.addEventListener("click", play);
+      stopButton.addEventListener("click", stop);
+      instButton?.addEventListener("click", renderInstrumentEditor);
+      instrumentEditorCloseBtn?.addEventListener(
+        "click",
+        closeInstrumentEditor
+      );
+      instrumentAddBtn?.addEventListener("click", () => {
+        showMessage("Add Instrument: Not implemented");
+      });
+      instrumentRemoveBtn?.addEventListener("click", () => {
+        showMessage("Remove Instrument: Not implemented");
+      });
+      tempoInput.addEventListener("change", () => {
+        const newTempo = parseInt(tempoInput.value, 10);
+        if (!isNaN(newTempo) && newTempo >= 40 && newTempo <= 300) {
+          if (toneStarted) Tone.Transport.bpm.value = newTempo;
+          showMessage("");
+          if (isPlaying) {
+            stop();
+            play();
+          }
+        } else {
+          tempoInput.value = toneStarted ? Tone.Transport.bpm.value : 120;
+          showMessage("Tempo: 40-300.");
+        }
+      });
+      rowsInput.addEventListener("change", () => {
+        const newRows = parseInt(rowsInput.value, 10);
+        if (!isNaN(newRows) && newRows >= 4 && newRows <= 64) {
+          if (isPlaying) stop();
+          totalRows = newRows;
+          channels.forEach((channel) => channel.resizeRows(totalRows));
+          generatePatternGrid();
+          showMessage("");
+        } else {
+          rowsInput.value = totalRows;
+          showMessage("Rows: 4-64.");
+        }
+      });
+      followCheckbox.addEventListener("change", () => {
+        followPlayback = followCheckbox.checked;
+      });
+      // Preamble Listeners
+      preambleAddBtn?.addEventListener("click", () => {
+        if (editingPreambleChannelIndex >= 0) {
+          channels[editingPreambleChannelIndex].preambleFx.push(null);
+          renderPreambleEditor();
+        }
+      });
+      preambleRemoveBtn?.addEventListener("click", () => {
+        if (editingPreambleChannelIndex >= 0) {
+          const channel = channels[editingPreambleChannelIndex];
+          if (channel.preambleFx.length > 1) {
+            channel.preambleFx.pop();
+            renderPreambleEditor();
+          }
+        }
+      });
+      preambleCloseBtn?.addEventListener("click", () => {
+        preambleEditor.classList.add("hidden");
+        editingPreambleChannelIndex = -1;
+      });
+      preambleChannelDisplayNameInput?.addEventListener("change", (event) => {
+        if (editingPreambleChannelIndex >= 0) {
+          channels[editingPreambleChannelIndex].displayName =
+            event.target.value.trim();
+          generatePatternGrid();
+        }
+      });
+      preambleChannelInstrumentInput?.addEventListener(
+        "change",
+        handlePreambleInstrumentChange
+      );
+
+      // --- Initialization ---
+      window.addEventListener("load", () => {
+        followPlayback = followCheckbox.checked;
+        generatePatternGrid();
+        showMessage(
+          "FX: C, V+/-, FV +/-, D t f, F cf [q], VIB f d, Rev d [pP] [wW]. Play."
+        );
+      });
+    </script>
+  </body>
+</html>
