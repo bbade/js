@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Falling Sand Game - Multi-Script Refactor</title>
+    <title>Falling Sand Game - Combined Gas Logic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
@@ -282,16 +282,14 @@
 
         getGrain(x, y) {
           if (x < 0 || x >= this.width || y < 0 || y >= this.height)
-            return MaterialType.STONE; // Depends on MaterialType
+            return MaterialType.STONE;
           return this.grid[y][x];
         }
 
         setGrain(x, y, grain) {
-          // grain can be Grain object or null
           if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
           this.grid[y][x] = grain;
           if (grain && typeof grain === "object") {
-            // grain is a Grain instance
             grain.x = x;
             grain.y = y;
             grain.updatedThisFrame = true;
@@ -305,13 +303,12 @@
         }
 
         isPassableBy(x, y, movingGrainMaterial) {
-          // movingGrainMaterial is from Materials
           if (x < 0 || x >= this.width || y < 0 || y >= this.height)
             return false;
-          const targetCellContent = this.grid[y][x]; // Could be Grain or null
+          const targetCellContent = this.grid[y][x];
           if (targetCellContent === null) return true;
           if (targetCellContent.updatedThisFrame) return false;
-          if (targetCellContent.material.isStatic) return false; // targetCellContent is a Grain
+          if (targetCellContent.material.isStatic) return false;
           return (
             movingGrainMaterial.density > targetCellContent.material.density
           );
@@ -332,22 +329,21 @@
         constructor(canvasId) {
           this.canvas = document.getElementById(canvasId);
           this.ctx = this.canvas.getContext("2d");
-          this.ctx.imageSmoothingEnabled = false; // For crisp pixels
+          this.ctx.imageSmoothingEnabled = false;
         }
 
         resize(gridWidth, gridHeight) {
-          this.canvas.width = gridWidth * GameConfig.PIXEL_SCALE; // Depends on GameConfig
+          this.canvas.width = gridWidth * GameConfig.PIXEL_SCALE;
           this.canvas.height = gridHeight * GameConfig.PIXEL_SCALE;
         }
 
         draw(gameBoard) {
-          // gameBoard is an instance of GameBoard
-          this.ctx.fillStyle = "#1a202c"; // bg-gray-800
+          this.ctx.fillStyle = "#1a202c";
           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
           for (let y = 0; y < gameBoard.height; y++) {
             for (let x = 0; x < gameBoard.width; x++) {
-              const grain = gameBoard.grid[y][x]; // grain is a Grain instance or null
+              const grain = gameBoard.grid[y][x];
               if (grain) {
                 this.ctx.fillStyle = grain.color;
                 this.ctx.fillRect(
@@ -367,11 +363,10 @@
       // --- Simulation Class ---
       class Simulation {
         constructor(gameBoard) {
-          this.gameBoard = gameBoard; // Instance of GameBoard
+          this.gameBoard = gameBoard;
         }
 
         update() {
-          // Reset updatedThisFrame flag for all grains
           for (let y = 0; y < this.gameBoard.height; y++) {
             for (let x = 0; x < this.gameBoard.width; x++) {
               const grain = this.gameBoard.grid[y][x];
@@ -379,7 +374,6 @@
             }
           }
 
-          // Update grains from bottom-up
           for (let y = this.gameBoard.height - 1; y >= 0; y--) {
             const scanOrder =
               y % 2 === 0
@@ -402,7 +396,6 @@
         }
 
         _handleFireBehavior(grain, mat, x, y) {
-          // grain is Grain, mat is from Materials
           grain.life--;
           if (grain.life <= 0) {
             this.gameBoard.setGrain(x, y, null);
@@ -419,13 +412,12 @@
             typeof grainAbove === "object" &&
             grainAbove.materialType === MaterialType.WATER
           ) {
-            // Depends on MaterialType
             this.gameBoard.setGrain(x, y, null);
             this.gameBoard.setGrain(
               x,
               y - 1,
               new Grain(x, y - 1, MaterialType.STEAM)
-            ); // Depends on Grain
+            );
             return true;
           }
 
@@ -482,7 +474,7 @@
             this.gameBoard.swap(x, y, x, y - 1);
             return true;
           }
-          const fireMoveDir = coinFlip(); // Depends on coinFlip
+          const fireMoveDir = coinFlip();
           if (this.gameBoard.isPassableBy(x + fireMoveDir, y - 1, mat)) {
             this.gameBoard.swap(x, y, x + fireMoveDir, y - 1);
             return true;
@@ -490,82 +482,52 @@
           return false;
         }
 
-        _updateGrain(grain) {
-          // grain is Grain
-          const mat = grain.material;
-          const x = grain.x;
-          const y = grain.y;
-
-          if (
-            grain.materialType === MaterialType.FIRE ||
-            grain.materialType === MaterialType.WOOD_FIRE
-          ) {
-            if (this._handleFireBehavior(grain, mat, x, y)) return;
-            return;
+        // New combined method for gas (Smoke/Steam) movement
+        _handleGasMovement(grain, mat, x, y) {
+          // Attempt to rise: first directly up, then diagonally up.
+          if (this.gameBoard.isPassableBy(x, y - 1, mat)) {
+            this.gameBoard.swap(x, y, x, y - 1);
+            return true;
+          }
+          const gasDir = coinFlip();
+          if (this.gameBoard.isPassableBy(x + gasDir, y - 1, mat)) {
+            this.gameBoard.swap(x, y, x + gasDir, y - 1);
+            return true;
+          }
+          if (this.gameBoard.isPassableBy(x - gasDir, y - 1, mat)) {
+            this.gameBoard.swap(x, y, x - gasDir, y - 1);
+            return true;
           }
 
-          if (
-            grain.materialType === MaterialType.SMOKE ||
-            grain.materialType === MaterialType.STEAM
-          ) {
-            if (
-              grain.materialType === MaterialType.SMOKE &&
-              Math.random() < mat.despawnChance
-            ) {
-              this.gameBoard.setGrain(x, y, null);
-              return;
+          // If blocked from rising, attempt to spread horizontally.
+          if (Math.random() < mat.slipperiness) {
+            const flowDir = coinFlip();
+            if (this.gameBoard.isPassableBy(x + flowDir, y, mat)) {
+              this.gameBoard.swap(x, y, x + flowDir, y);
+              return true;
             }
-            if (
-              grain.materialType === MaterialType.STEAM &&
-              Math.random() < mat.condenseChance
-            ) {
-              this.gameBoard.setGrain(
-                x,
-                y,
-                new Grain(x, y, MaterialType.WATER)
-              );
-              return;
+            if (this.gameBoard.isPassableBy(x - flowDir, y, mat)) {
+              this.gameBoard.swap(x, y, x - flowDir, y);
+              return true;
             }
-
-            if (this.gameBoard.isPassableBy(x, y - 1, mat)) {
-              this.gameBoard.swap(x, y, x, y - 1);
-              return;
-            }
-            const gasDir = coinFlip();
-            if (this.gameBoard.isPassableBy(x + gasDir, y - 1, mat)) {
-              this.gameBoard.swap(x, y, x + gasDir, y - 1);
-              return;
-            }
-            if (this.gameBoard.isPassableBy(x - gasDir, y - 1, mat)) {
-              this.gameBoard.swap(x, y, x - gasDir, y - 1);
-              return;
-            }
-            if (Math.random() < mat.slipperiness) {
-              const flowDir = coinFlip();
-              if (this.gameBoard.isPassableBy(x + flowDir, y, mat)) {
-                this.gameBoard.swap(x, y, x + flowDir, y);
-                return;
-              }
-              if (this.gameBoard.isPassableBy(x - flowDir, y, mat)) {
-                this.gameBoard.swap(x, y, x - flowDir, y);
-                return;
-              }
-            }
-            return;
           }
+          return false; // No definitive movement action taken.
+        }
 
+        _handle`Behavior(grain, mat, x, y) {
           if (this.gameBoard.isPassableBy(x, y + 1, mat)) {
             this.gameBoard.swap(x, y, x, y + 1);
-            return;
+            return true;
           }
+
           const dir = coinFlip();
           if (this.gameBoard.isPassableBy(x + dir, y + 1, mat)) {
             this.gameBoard.swap(x, y, x + dir, y + 1);
-            return;
+            return true;
           }
           if (this.gameBoard.isPassableBy(x - dir, y + 1, mat)) {
             this.gameBoard.swap(x, y, x - dir, y + 1);
-            return;
+            return true;
           }
 
           if (
@@ -575,12 +537,54 @@
             const flowDir = coinFlip();
             if (this.gameBoard.isPassableBy(x + flowDir, y, mat)) {
               this.gameBoard.swap(x, y, x + flowDir, y);
-              return;
+              return true;
             }
             if (this.gameBoard.isPassableBy(x - flowDir, y, mat)) {
               this.gameBoard.swap(x, y, x - flowDir, y);
-              return;
+              return true;
             }
+          }
+          return false;
+        }
+
+        _updateGrain(grain) {
+          const mat = grain.material;
+          const x = grain.x;
+          const y = grain.y;
+
+          switch (grain.materialType) {
+            case MaterialType.FIRE:
+            case MaterialType.WOOD_FIRE:
+              this._handleFireBehavior(grain, mat, x, y);
+              break;
+            case MaterialType.SMOKE:
+              // Handle smoke-specific despawn first
+              if (Math.random() < mat.despawnChance) {
+                this.gameBoard.setGrain(x, y, null);
+                return; // Despawned, turn over
+              }
+              // Then handle common gas movement
+              this._handleGasMovement(grain, mat, x, y);
+              break;
+            case MaterialType.STEAM:
+              // Handle steam-specific condensation first
+              if (Math.random() < mat.condenseChance) {
+                this.gameBoard.setGrain(
+                  x,
+                  y,
+                  new Grain(x, y, MaterialType.WATER)
+                );
+                return; // Condensed, turn over
+              }
+              // Then handle common gas movement
+              this._handleGasMovement(grain, mat, x, y);
+              break;
+            case MaterialType.SAND:
+            case MaterialType.WATER:
+              this._handleDefaultFallingBehavior(grain, mat, x, y);
+              break;
+            default:
+              break;
           }
         }
       }
@@ -591,15 +595,13 @@
       class Toolbar {
         constructor(toolbarElementId, onMaterialSelectCallback) {
           this.toolbarElement = document.getElementById(toolbarElementId);
-          this.onMaterialSelect = onMaterialSelectCallback; // Callback to notify GameEngine
+          this.onMaterialSelect = onMaterialSelectCallback;
           this._setup();
         }
 
         _setup() {
           this.toolbarElement.innerHTML = "";
           Object.values(MaterialType).forEach((type) => {
-            // Depends on MaterialType
-            // Materials not selectable in toolbar
             if (
               type === MaterialType.EMPTY ||
               type === MaterialType.SMOKE ||
@@ -608,7 +610,7 @@
             )
               return;
 
-            const material = Materials[type]; // Depends on Materials
+            const material = Materials[type];
             if (!material) {
               console.error(
                 "Toolbar: Material definition missing for type:",
@@ -623,7 +625,7 @@
             item.dataset.materialType = type;
 
             const previewCanvas = document.createElement("canvas");
-            previewCanvas.width = GameConfig.TOOLBAR_PREVIEW_SIZE; // Depends on GameConfig
+            previewCanvas.width = GameConfig.TOOLBAR_PREVIEW_SIZE;
             previewCanvas.height = GameConfig.TOOLBAR_PREVIEW_SIZE;
             previewCanvas.className = "toolbar-preview";
             this._drawMaterialPreview(previewCanvas, material);
@@ -640,10 +642,9 @@
         }
 
         _drawMaterialPreview(canvas, material) {
-          // material is from Materials
           const ctx = canvas.getContext("2d");
           ctx.imageSmoothingEnabled = false;
-          const colorGeneratorGrain = new Grain(0, 0, MaterialType.SAND); // Dummy for color generation, depends on Grain
+          const colorGeneratorGrain = new Grain(0, 0, MaterialType.SAND);
           const previewCellSize = Math.max(
             1,
             Math.floor(GameConfig.TOOLBAR_PREVIEW_SIZE / 4)
@@ -653,7 +654,7 @@
               ctx.fillStyle = colorGeneratorGrain._generateColor(
                 material.baseColor,
                 material.colorVariation
-              ); // Accessing private-like method
+              );
               ctx.fillRect(
                 c * previewCellSize,
                 r * previewCellSize,
@@ -696,8 +697,8 @@
       class CanvasInputHandler {
         constructor(canvas, placeCallback, deleteCallback) {
           this.canvas = canvas;
-          this.placeCallback = placeCallback; // e.g., gameEngine._placeOrDelete(x,y,false)
-          this.deleteCallback = deleteCallback; // e.g., gameEngine._placeOrDelete(x,y,true)
+          this.placeCallback = placeCallback;
+          this.deleteCallback = deleteCallback;
           this.isLeftMouseDown = false;
           this.isRightMouseDown = false;
           this._setupListeners();
@@ -723,11 +724,9 @@
           this.canvas.addEventListener("mousedown", (e) => {
             const coords = this._getCanvasCoordinates(e);
             if (e.button === 0) {
-              // Left click
               this.isLeftMouseDown = true;
               this.placeCallback(coords.x, coords.y);
             } else if (e.button === 2) {
-              // Right click
               this.isRightMouseDown = true;
               this.deleteCallback(coords.x, coords.y);
               e.preventDefault();
@@ -741,7 +740,6 @@
               this.deleteCallback(coords.x, coords.y);
           });
 
-          // Use document for mouseup to catch releases outside canvas
           document.addEventListener("mouseup", (e) => {
             if (e.button === 0) this.isLeftMouseDown = false;
             else if (e.button === 2) this.isRightMouseDown = false;
@@ -757,7 +755,7 @@
               e.preventDefault();
               const coords = this._getCanvasCoordinates(e);
               this.isLeftMouseDown = true;
-              this.isRightMouseDown = false; // Ensure right is not active for touch
+              this.isRightMouseDown = false;
               this.placeCallback(coords.x, coords.y);
             },
             { passive: false }
@@ -787,7 +785,6 @@
       // --- GameUI Class (Handles non-canvas UI elements) ---
       class GameUI {
         constructor(gameEngine) {
-          // gameEngine is an instance of GameEngine
           this.gameEngine = gameEngine;
           this.messageOverlay = document.getElementById("messageOverlay");
           this.pauseButton = document.getElementById("pauseButton");
@@ -798,16 +795,13 @@
           this.canvasSizeSelector =
             document.getElementById("canvasSizeSelector");
 
-          // Instantiate Toolbar, GameUI owns it.
           this.toolbar = new Toolbar("toolbar", (materialType) => {
-            // Depends on Toolbar class
             this.gameEngine.setSelectedMaterial(materialType);
           });
 
           this._setupEventListeners();
         }
 
-        // Called by GameEngine to update toolbar selection visual
         updateToolbarVisual(selectedType) {
           this.toolbar.updateSelectedVisual(selectedType);
         }
@@ -847,7 +841,7 @@
             this.gameEngine.resetGame()
           );
 
-          this.brushSizeSlider.min = GameConfig.MIN_BRUSH_SIZE; // Depends on GameConfig
+          this.brushSizeSlider.min = GameConfig.MIN_BRUSH_SIZE;
           this.brushSizeSlider.max = GameConfig.MAX_BRUSH_SIZE;
           this.brushSizeSlider.value = this.gameEngine.getBrushSize();
           this.brushSizeValueDisplay.textContent =
@@ -871,25 +865,23 @@
       // --- Game Engine Class (Orchestrator) ---
       class GameEngine {
         constructor(canvasId) {
-          this.gridWidth = GameConfig.DEFAULT_GRID_WIDTH; // Depends on GameConfig
+          this.gridWidth = GameConfig.DEFAULT_GRID_WIDTH;
           this.gridHeight = GameConfig.DEFAULT_GRID_HEIGHT;
 
-          this.gameBoard = new GameBoard(this.gridWidth, this.gridHeight); // Depends on GameBoard
-          this.renderer = new Renderer(canvasId); // Depends on Renderer
-          this.simulation = new Simulation(this.gameBoard); // Depends on Simulation
+          this.gameBoard = new GameBoard(this.gridWidth, this.gridHeight);
+          this.renderer = new Renderer(canvasId);
+          this.simulation = new Simulation(this.gameBoard);
 
-          // UI and Input Handling
-          this.ui = new GameUI(this); // Depends on GameUI
-          this.canvasInputHandler = new CanvasInputHandler( // Depends on CanvasInputHandler
+          this.ui = new GameUI(this);
+          this.canvasInputHandler = new CanvasInputHandler(
             this.renderer.canvas,
-            (x, y) => this._placeOrDelete(x, y, false), // Place callback
-            (x, y) => this._placeOrDelete(x, y, true) // Delete callback
+            (x, y) => this._placeOrDelete(x, y, false),
+            (x, y) => this._placeOrDelete(x, y, true)
           );
 
-          this.selectedMaterialType = MaterialType.SAND; // Depends on MaterialType
+          this.selectedMaterialType = MaterialType.SAND;
           this.brushSize = GameConfig.DEFAULT_BRUSH_SIZE;
           this.isPaused = false;
-          // isMouseDown and isRightMouseDown are now managed by CanvasInputHandler
           this.gameLoopInterval = null;
 
           this._init();
@@ -897,9 +889,8 @@
 
         _init() {
           this.renderer.resize(this.gridWidth, this.gridHeight);
-          this.ui.updateToolbarVisual(this.selectedMaterialType); // Tell UI to update toolbar
+          this.ui.updateToolbarVisual(this.selectedMaterialType);
           this.ui.updatePauseButton(this.isPaused);
-          // Canvas event listeners are set up by CanvasInputHandler's constructor
           this.gameLoopInterval = setInterval(
             () => this._gameLoop(),
             1000 / GameConfig.FPS
@@ -913,10 +904,9 @@
           this.renderer.draw(this.gameBoard);
         }
 
-        // --- Methods called by UI or Input Handler ---
         setSelectedMaterial(type) {
           this.selectedMaterialType = type;
-          this.ui.updateToolbarVisual(type); // Notify UI to update its display
+          this.ui.updateToolbarVisual(type);
         }
 
         setBrushSize(size) {
@@ -949,7 +939,6 @@
           if (this.isPaused) this.togglePause();
         }
 
-        // Callback for CanvasInputHandler
         _placeOrDelete(canvasPixelX, canvasPixelY, isDeleting) {
           const gridX = Math.floor(canvasPixelX / GameConfig.PIXEL_SCALE);
           const gridY = Math.floor(canvasPixelY / GameConfig.PIXEL_SCALE);
@@ -981,7 +970,7 @@
                         newX,
                         newY,
                         this.selectedMaterialType
-                      ); // Depends on Grain
+                      );
                       this.gameBoard.setGrain(newX, newY, newGrain);
                     }
                   }
@@ -996,7 +985,7 @@
     <script id="game-main">
       // --- Initialize Game ---
       window.onload = () => {
-        new GameEngine("gameCanvas"); // Depends on GameEngine
+        new GameEngine("gameCanvas");
       };
     </script>
   </body>
