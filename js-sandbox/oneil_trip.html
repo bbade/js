@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive O'Neill Cylinder Trip Calculator</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #1e1e1e; /* Dark background */
+        color: #e0e0e0; /* Light text */
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Align to top for longer content */
+        min-height: 100vh;
+        padding-top: 20px; /* Add some padding at the top */
+        padding-bottom: 20px; /* Add some padding at the bottom */
+      }
+      .container {
+        background-color: #2d2d2d; /* Slightly lighter dark for container */
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        width: 90%;
+        max-width: 750px; /* Slightly wider for more fields */
+      }
+      h1,
+      h2 {
+        color: #00aeff; /* Accent color for headers */
+        border-bottom: 2px solid #00aeff;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        text-align: center;
+        font-size: 1.8em;
+      }
+      h2 {
+        font-size: 1.4em;
+        margin-top: 30px;
+      }
+      label {
+        display: block;
+        margin-top: 15px;
+        font-weight: bold;
+        color: #c0c0c0; /* Lighter gray for labels */
+      }
+      input[type="number"],
+      input[type="text"] {
+        /* Apply to both types now */
+        width: calc(100% - 22px); /* Full width minus padding and border */
+        padding: 10px;
+        margin-top: 8px;
+        border-radius: 6px;
+        border: 1px solid #444; /* Darker border */
+        background-color: #3a3a3a; /* Dark input background */
+        color: #e0e0e0; /* Light text in input */
+        font-size: 1em;
+      }
+      input[type="number"]:focus,
+      input[type="text"]:focus {
+        /* Apply to both types now */
+        outline: none;
+        border-color: #00aeff; /* Accent color on focus */
+        box-shadow: 0 0 8px rgba(0, 174, 255, 0.5);
+      }
+      button {
+        display: block; /* Make button block to center it */
+        width: 50%;
+        margin: 25px auto 0 auto; /* Center button */
+        padding: 12px 18px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1.1em;
+        transition: background-color 0.3s ease;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .output-section {
+        margin-top: 25px;
+        padding-top: 15px;
+        border-top: 1px solid #444; /* Darker separator */
+      }
+      .output-item {
+        margin-bottom: 12px;
+        padding: 8px;
+        background-color: #3a3a3a; /* Background for output items */
+        border-radius: 4px;
+        font-size: 0.95em;
+        /* Allow text wrapping */
+        white-space: normal;
+        word-wrap: break-word;
+      }
+      .output-item strong {
+        color: #00aeff; /* Accent color for output labels */
+        min-width: 320px; /* Ensure alignment for wider screens */
+        display: inline-block;
+      }
+      .fixed-info {
+        background-color: #3a3a3a;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 25px;
+        border-left: 5px solid #00aeff;
+      }
+      .fixed-info div {
+        margin-bottom: 5px;
+      }
+      /* Responsive adjustments */
+      @media (max-width: 600px) {
+        .container {
+          width: 95%;
+          padding: 15px;
+        }
+        h1 {
+          font-size: 1.5em;
+        }
+        h2 {
+          font-size: 1.2em;
+        }
+        input[type="number"],
+        input[type="text"] {
+          font-size: 0.9em;
+        }
+        button {
+          width: 100%;
+          font-size: 1em;
+        }
+        .output-item strong {
+          min-width: auto;
+          display: block;
+          margin-bottom: 3px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Interactive O'Neill Cylinder Trip Calculator</h1>
+
+      <div class="fixed-info">
+        <strong>Fixed Parameters (Newtonian Physics):</strong>
+        <div id="calculatedMassDisplayHeader">
+          Calculated Cylinder Mass: N/A kg
+        </div>
+        <div>
+          Shell Material Density (Granite):
+          <span id="shellDensityDisplay"></span> kg/m³
+        </div>
+        <div>
+          Speed of Light (c): <span id="speedOfLightDisplay"></span> m/s
+        </div>
+        <div>1 Light Year: <span id="metersPerLYDisplay"></span> m</div>
+        <div>
+          Solar Luminosity (L<sub>☉</sub>):
+          <span id="solarLuminosityDisplay"></span> Watts
+        </div>
+        <div>
+          Target Illumination: 350 Watts/m² (useful light output on internal
+          surface)
+        </div>
+        <div>Population Density: 3600 people/km² (internal surface)</div>
+      </div>
+
+      <h2>Inputs</h2>
+      <h3>Cylinder Dimensions</h3>
+      <div>
+        <label for="cylinderLength">Length (km):</label>
+        <input
+          type="number"
+          id="cylinderLength"
+          value="50"
+          step="1"
+          min="0.1"
+        />
+      </div>
+      <div>
+        <label for="cylinderDiameter">Outer Diameter (km):</label>
+        <input
+          type="number"
+          id="cylinderDiameter"
+          value="20"
+          step="0.5"
+          min="0.1"
+        />
+      </div>
+      <div>
+        <label for="shellThickness">Shell Thickness (km):</label>
+        <input
+          type="number"
+          id="shellThickness"
+          value="1"
+          step="0.1"
+          min="0.01"
+        />
+      </div>
+
+      <h3>Trip Parameters</h3>
+      <div>
+        <label for="distanceLY">Trip Distance (Light Years):</label>
+        <input type="number" id="distanceLY" value="1" step="0.1" min="0.001" />
+      </div>
+      <div>
+        <label for="accelRate"
+          >Acceleration/Deceleration Rate (a) (m/s²):</label
+        >
+        <input
+          type="number"
+          id="accelRate"
+          value="1"
+          step="0.01"
+          min="0.000001"
+        />
+      </div>
+      <div>
+        <label for="engineEfficiency"
+          >Engine Efficiency (Thrust Conversion) (%):</label
+        >
+        <input
+          type="number"
+          id="engineEfficiency"
+          value="100"
+          step="1"
+          min="1"
+          max="100"
+        />
+      </div>
+      <div>
+        <label for="lightingEfficiency">Lighting System Efficiency (%):</label>
+        <input
+          type="number"
+          id="lightingEfficiency"
+          value="100"
+          step="1"
+          min="1"
+          max="100"
+        />
+      </div>
+      <div>
+        <label for="maxSpeedPercentC"
+          >Target Maximum Speed (% of c, max 10%):</label
+        >
+        <input
+          type="text"
+          inputmode="decimal"
+          id="maxSpeedPercentC"
+          value="1"
+          placeholder="e.g., 1.5"
+        />
+      </div>
+
+      <button onclick="calculateOutputs()">Calculate Manually</button>
+
+      <div class="output-section">
+        <h2>Outputs</h2>
+        <div class="output-item" id="outputCalculatedMass">
+          <strong>Calculated Cylinder Mass:</strong>
+        </div>
+        <div class="output-item" id="outputInternalSurfaceArea">
+          <strong>Internal Surface Area of Cylinder:</strong>
+        </div>
+        <div class="output-item" id="outputPopulation">
+          <strong>Estimated Population:</strong>
+        </div>
+        <div class="output-item" id="outputPowerForLighting">
+          <strong>Power for Lighting (P<sub>lighting_source</sub>):</strong>
+        </div>
+        <div class="output-item" id="outputUserTargetVelocity">
+          <strong>User Target Velocity (v<sub>target</sub>):</strong>
+        </div>
+        <div class="output-item" id="outputActualMaxVelocity">
+          <strong>Actual Max Velocity Reached (v<sub>max_actual</sub>):</strong>
+        </div>
+        <hr style="border-color: #444" />
+        <div class="output-item" id="outputAccelPower">
+          <strong>Useful Accel. Power (initial, 1st sec avg):</strong>
+        </div>
+        <div class="output-item" id="outputTotalPower1s">
+          <strong
+            >Total Source Power (initial, 1st sec accel, incl.
+            lighting):</strong
+          >
+        </div>
+        <div class="output-item" id="outputAntimatter">
+          <strong>Antimatter per Second (during initial 1st sec accel):</strong>
+        </div>
+        <hr style="border-color: #444" />
+        <div class="output-item" id="outputTripDuration">
+          <strong>Total Trip Duration (accel, coast, decel):</strong>
+        </div>
+        <div class="output-item" id="outputTimeAccel">
+          <strong>Time Spent Accelerating:</strong>
+        </div>
+        <div class="output-item" id="outputTimeCoast">
+          <strong>Time Spent Coasting:</strong>
+        </div>
+        <div class="output-item" id="outputTimeDecel">
+          <strong>Time Spent Decelerating:</strong>
+        </div>
+        <hr style="border-color: #444" />
+        <div class="output-item" id="outputTotalAccelEnergyUseful">
+          <strong
+            >Total Useful Kinetic Energy Gained (to
+            v<sub>max_actual</sub>):</strong
+          >
+        </div>
+        <div class="output-item" id="outputTotalLightingEnergy">
+          <strong>Total Lighting Source Energy (for trip duration):</strong>
+        </div>
+        <div class="output-item" id="outputTotalEnergySource">
+          <strong
+            >Total Source Energy Expended for Trip (E<sub>source</sub>):</strong
+          >
+        </div>
+        <hr style="border-color: #444" />
+        <div class="output-item" id="outputTotalAntimatterMass">
+          <strong
+            >Total Antimatter Mass (for trip, from E<sub>source</sub>):</strong
+          >
+        </div>
+        <div class="output-item" id="outputEquivalentWaterVolume">
+          <strong>Equivalent Water Volume (for total antimatter mass):</strong>
+        </div>
+        <div class="output-item" id="outputWaterCubeSide">
+          <strong>Side Length of Water Cube (for equivalent volume):</strong>
+        </div>
+        <div class="output-item" id="outputSolarEquivalentSeconds">
+          <strong
+            >Equivalent Seconds of Solar Output (for
+            E<sub>source</sub>):</strong
+          >
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- Constants ---
+      const DENSITY_GRANITE_KG_PER_M3 = 2700;
+      const SPEED_OF_LIGHT_MPS = 299792458;
+      const METERS_PER_LIGHT_YEAR = 9.4607e15;
+      const LUMINOSITY_SUN_WATTS = 3.828e26;
+      const MAX_SPEED_PERCENT_OF_C_CAP = 10;
+      const TARGET_ILLUMINATION_WATTS_PER_M2 = 350;
+      const POPULATION_DENSITY_PER_KM2 = 3600;
+      const C_SQUARED = SPEED_OF_LIGHT_MPS * SPEED_OF_LIGHT_MPS;
+      const TWO_C_SQUARED = 2 * C_SQUARED;
+      const JOULES_PER_TW_SECOND = 1e12;
+      const SECONDS_PER_HOUR = 3600;
+      const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
+      const DAYS_PER_YEAR = 365.25;
+      const JOULES_PER_TERAJOULE = 1e12;
+      const KG_PER_TONNE = 1000;
+      const DENSITY_WATER_KG_PER_M3 = 1000;
+      const METERS_PER_KM = 1000;
+
+      // --- Helper Formatting Functions ---
+      /**
+       * Formats a number into scientific notation "mantissa × 10^exponent".
+       * @param {number} num - The number to format.
+       * @param {number} precision - The number of digits after the decimal point in the mantissa.
+       * @returns {string} The formatted string or "N/A" if input is invalid.
+       */
+      function formatScientific(num, precision) {
+        if (isNaN(num) || num === null) return "N/A";
+        if (num === 0)
+          return precision > 0 ? `0.${"0".repeat(precision)}` : "0";
+        const expStr = num.toExponential(precision);
+        const parts = expStr.split("e");
+        return `${parts[0]} &times; 10<sup>${parseInt(parts[1])}</sup>`;
+      }
+
+      /**
+       * Formats a duration in seconds into a human-readable string (seconds, hours, days, years).
+       * @param {number} seconds - The duration in seconds.
+       * @param {number} [precision=2] - The number of decimal places for the formatted time.
+       * @returns {string} The formatted time string or "N/A".
+       */
+      function formatTime(seconds, precision = 2) {
+        if (isNaN(seconds) || seconds < 0) return "N/A";
+        if (seconds === 0) return `0.${"0".repeat(precision)} seconds`;
+        if (seconds < 1)
+          return `${formatScientific(
+            seconds,
+            precision
+          )} seconds (sub-second!)`;
+        if (seconds < SECONDS_PER_HOUR)
+          return `${seconds.toFixed(precision)} seconds`;
+        if (seconds < SECONDS_PER_DAY * 2)
+          return `${(seconds / SECONDS_PER_HOUR).toFixed(precision)} hours`;
+        const days = seconds / SECONDS_PER_DAY;
+        if (days < DAYS_PER_YEAR * 2) return `${days.toFixed(precision)} days`;
+        const years = days / DAYS_PER_YEAR;
+        return years <= 10000
+          ? `${years.toFixed(precision)} years`
+          : `${formatScientific(years, precision)} years (long!)`;
+      }
+
+      // --- Pure Calculation Functions ---
+
+      /**
+       * Calculates the properties of a hollow cylinder's shell.
+       * Converts inputs from km to meters for internal calculation.
+       * Equation for volume of a hollow cylinder: V = π * (R_outer² - R_inner²) * L
+       * @param {number} length_km - Cylinder length in kilometers.
+       * @param {number} diameter_km - Cylinder outer diameter in kilometers.
+       * @param {number} thickness_km - Shell thickness in kilometers.
+       * @returns {object} { shellVolume_m3, innerRadius_m, length_m, error: string|null }
+       */
+      function calculateCylinderShellProperties(
+        length_km,
+        diameter_km,
+        thickness_km
+      ) {
+        const length_m = length_km * METERS_PER_KM;
+        const outerRadius_m = (diameter_km / 2) * METERS_PER_KM;
+        const shellThickness_m = thickness_km * METERS_PER_KM;
+
+        if (shellThickness_m >= outerRadius_m) {
+          return {
+            shellVolume_m3: NaN,
+            innerRadius_m: NaN,
+            length_m,
+            error: "Error! Thickness >= Radius",
+          };
+        }
+        const innerRadius_m = outerRadius_m - shellThickness_m;
+        // Volume of outer cylinder - Volume of inner cylinder
+        const volumeOuter_m3 =
+          Math.PI * outerRadius_m * outerRadius_m * length_m;
+        const volumeInner_m3 =
+          Math.PI * innerRadius_m * innerRadius_m * length_m;
+        const shellVolume_m3 = volumeOuter_m3 - volumeInner_m3;
+        return { shellVolume_m3, innerRadius_m, length_m, error: null };
+      }
+
+      /**
+       * Calculates the mass of the cylinder.
+       * Equation: Mass = Volume * Density
+       * @param {number} shellVolume_m3 - Volume of the cylinder shell in cubic meters.
+       * @param {number} density_kg_m3 - Density of the shell material in kg/m³.
+       * @returns {number} Mass in kilograms.
+       */
+      function calculateCylinderMass_kg(shellVolume_m3, density_kg_m3) {
+        return shellVolume_m3 * density_kg_m3;
+      }
+
+      /**
+       * Calculates the internal surface area of the cylinder (excluding end caps).
+       * Equation: Area = 2 * π * r_inner * L
+       * @param {number} innerRadius_m - Inner radius of the cylinder in meters.
+       * @param {number} length_m - Length of the cylinder in meters.
+       * @returns {number} Internal surface area in square kilometers.
+       */
+      function calculateInternalSurfaceArea_km2(innerRadius_m, length_m) {
+        const innerRadius_km = innerRadius_m / METERS_PER_KM;
+        const length_km = length_m / METERS_PER_KM;
+        return 2 * Math.PI * innerRadius_km * length_km;
+      }
+
+      /**
+       * Calculates the estimated population based on internal surface area and density.
+       * Equation: Population = Area * PopulationDensity
+       * @param {number} internalSurfaceArea_km2 - Internal surface area in square kilometers.
+       * @param {number} pop_density_km2 - Population density in people per square kilometer.
+       * @returns {number} Estimated population.
+       */
+      function calculatePopulation(internalSurfaceArea_km2, pop_density_km2) {
+        return internalSurfaceArea_km2 * pop_density_km2;
+      }
+
+      /**
+       * Calculates the source power required for lighting the cylinder's interior.
+       * Accounts for lighting system efficiency.
+       * Equation: P_source_lighting = (Area_internal_m² * TargetIllumination_W/m²) / LightingEfficiency_decimal
+       * @param {number} internalSurfaceArea_km2 - Internal surface area in square kilometers.
+       * @param {number} target_illumination_w_m2 - Target useful light output in Watts per square meter.
+       * @param {number} lighting_efficiency_percent - Efficiency of the lighting system (1-100).
+       * @returns {number} Source power for lighting in Watts.
+       */
+      function calculateLightingSourcePower_watts(
+        internalSurfaceArea_km2,
+        target_illumination_w_m2,
+        lighting_efficiency_percent
+      ) {
+        const internalSurfaceArea_m2 =
+          internalSurfaceArea_km2 * (METERS_PER_KM * METERS_PER_KM);
+        const usefulLightingPower_watts =
+          internalSurfaceArea_m2 * target_illumination_w_m2;
+        const lightingEfficiency = lighting_efficiency_percent / 100;
+        return usefulLightingPower_watts / lightingEfficiency;
+      }
+
+      /**
+       * Calculates the target velocity in meters per second from a percentage of the speed of light.
+       * Equation: v_target = (percentage / 100) * c
+       * @param {number} max_speed_percent_c - Target speed as a percentage of c.
+       * @returns {number} Target velocity in m/s.
+       */
+      function calculateTargetVelocity_mps(max_speed_percent_c) {
+        return (max_speed_percent_c / 100) * SPEED_OF_LIGHT_MPS;
+      }
+
+      /**
+       * Calculates the detailed trip profile including acceleration, coasting, and deceleration phases.
+       * Equations:
+       * Distance to reach v_target: d = v_target² / (2 * a)
+       * Time to reach v_target: t = v_target / a
+       * Velocity from acceleration over distance: v = sqrt(2 * a * d)
+       * Time to cover distance under acceleration: t = sqrt(2 * d / a)
+       * Time to cover distance under coast: t = d / v
+       * @param {number} D_total_meters - Total trip distance in meters.
+       * @param {number} v_target_mps - User's target maximum velocity in m/s.
+       * @param {number} accelRate - Acceleration/deceleration rate in m/s².
+       * @returns {object} { v_max_actual_mps, t_accel_seconds, d_accel_meters, t_coast_seconds, d_coast_meters, t_decel_seconds, t_total_seconds }
+       */
+      function calculateTripProfile(D_total_meters, v_target_mps, accelRate) {
+        let t_accel_seconds,
+          d_accel_meters,
+          v_max_actual_mps,
+          t_coast_seconds,
+          d_coast_meters;
+        // Distance required to accelerate to v_target_mps (and symmetrically to decelerate from it)
+        const d_accel_to_target_if_possible =
+          (v_target_mps * v_target_mps) / (2 * accelRate);
+
+        if (D_total_meters < 2 * d_accel_to_target_if_possible) {
+          // "Short trip": Cannot reach v_target_mps; accelerates to halfway, then decelerates.
+          d_accel_meters = D_total_meters / 2; // Accelerates for half the distance
+          t_accel_seconds = Math.sqrt((2 * d_accel_meters) / accelRate); // t = sqrt(2d/a)
+          v_max_actual_mps = accelRate * t_accel_seconds; // v = a*t
+          t_coast_seconds = 0;
+          d_coast_meters = 0;
+        } else {
+          // "Long trip": Reaches v_target_mps, coasts, then decelerates.
+          d_accel_meters = d_accel_to_target_if_possible;
+          t_accel_seconds = v_target_mps / accelRate; // t = v/a
+          v_max_actual_mps = v_target_mps;
+          d_coast_meters = D_total_meters - 2 * d_accel_meters; // Remaining distance for coasting
+          t_coast_seconds =
+            d_coast_meters > 0 && v_max_actual_mps > 0
+              ? d_coast_meters / v_max_actual_mps
+              : 0; // t = d/v
+        }
+        const t_decel_seconds = t_accel_seconds; // Deceleration mirrors acceleration
+        const t_total_seconds =
+          t_accel_seconds + t_coast_seconds + t_decel_seconds;
+        return {
+          v_max_actual_mps,
+          t_accel_seconds,
+          d_accel_meters,
+          t_coast_seconds,
+          d_coast_meters,
+          t_decel_seconds,
+          t_total_seconds,
+        };
+      }
+
+      /**
+       * Calculates the useful average power required for acceleration during the first second, starting from rest.
+       * Equation: P_avg_1s = KE_1s / 1s = (0.5 * m * (a*1s)²) / 1s = 0.5 * m * a²
+       * @param {number} mass_kg - Mass of the object in kilograms.
+       * @param {number} accelRate - Acceleration rate in m/s².
+       * @returns {number} Useful acceleration power in Watts.
+       */
+      function calculateInitialUsefulAccelPower_watts(mass_kg, accelRate) {
+        return 0.5 * mass_kg * accelRate * accelRate;
+      }
+
+      /**
+       * Calculates the total source power drawn during the first second of acceleration.
+       * Accounts for engine efficiency for the acceleration component and adds operational power.
+       * Equation: P_total_source_1s = (P_useful_accel_1s / EngineEfficiency) + P_operational
+       * @param {number} usefulAccelPower_watts - Useful power for acceleration in Watts.
+       * @param {number} engineEfficiency_decimal - Engine efficiency (0.0 to 1.0).
+       * @param {number} operationalPower_watts - Fixed operational power (e.g., lighting) in Watts.
+       * @returns {number} Total source power in Watts.
+       */
+      function calculateInitialTotalSourcePower_watts(
+        usefulAccelPower_watts,
+        engineEfficiency_decimal,
+        operationalPower_watts
+      ) {
+        const sourceAccelPower_watts =
+          usefulAccelPower_watts / engineEfficiency_decimal;
+        return sourceAccelPower_watts + operationalPower_watts;
+      }
+
+      /**
+       * Calculates the mass of antimatter consumed per second.
+       * Assumes 100% mass-to-energy conversion (E=mc²) for antimatter + equal matter.
+       * Equation: m_antimatter/s = P_total_source / (2 * c²)
+       * @param {number} totalSourcePower_watts - Total source power in Watts.
+       * @returns {number} Antimatter consumed in grams per second.
+       */
+      function calculateAntimatterPerSecond_gs(totalSourcePower_watts) {
+        const antimatterKgs = totalSourcePower_watts / TWO_C_SQUARED;
+        return antimatterKgs * 1000;
+      }
+
+      /**
+       * Calculates the final useful kinetic energy achieved by the object.
+       * Equation: KE = 0.5 * m * v²
+       * @param {number} mass_kg - Mass of the object in kilograms.
+       * @param {number} v_max_actual_mps - Actual maximum velocity achieved in m/s.
+       * @returns {number} Kinetic energy in Joules.
+       */
+      function calculateUsefulKeFinal_joules(mass_kg, v_max_actual_mps) {
+        return 0.5 * mass_kg * v_max_actual_mps * v_max_actual_mps;
+      }
+
+      /**
+       * Calculates the total energy consumed by fixed operational costs over the trip duration.
+       * Equation: E_operational = P_operational * t_trip
+       * @param {number} operationalPower_watts - Fixed operational power in Watts.
+       * @param {number} t_trip_total_seconds - Total trip duration in seconds.
+       * @returns {number} Total operational energy in Joules.
+       */
+      function calculateTotalOperationalEnergy_joules(
+        operationalPower_watts,
+        t_trip_total_seconds
+      ) {
+        return operationalPower_watts * t_trip_total_seconds;
+      }
+
+      /**
+       * Calculates the total source energy required for the entire trip.
+       * Accounts for engine efficiency for thrust (accel & decel) and operational energy.
+       * Equation: E_total_source = 2 * (KE_final_useful / EngineEfficiency) + E_operational_total
+       * (Factor of 2 for KE is because energy is needed for both acceleration and deceleration thrust phases)
+       * @param {number} usefulKeFinal_joules - Final useful kinetic energy in Joules.
+       * @param {number} engineEfficiency_decimal - Engine efficiency (0.0 to 1.0).
+       * @param {number} totalOperationalEnergy_joules - Total operational energy for the trip in Joules.
+       * @returns {number} Total source energy in Joules.
+       */
+      function calculateTotalSourceEnergyForTrip_joules(
+        usefulKeFinal_joules,
+        engineEfficiency_decimal,
+        totalOperationalEnergy_joules
+      ) {
+        const sourceEnergyForOneThrustPhase =
+          usefulKeFinal_joules / engineEfficiency_decimal;
+        return (
+          2 * sourceEnergyForOneThrustPhase + totalOperationalEnergy_joules
+        );
+      }
+
+      /**
+       * Calculates the total mass of antimatter required for the trip.
+       * Assumes 100% mass-to-energy conversion (E=mc²) for antimatter + equal matter.
+       * Equation: m_antimatter_total = E_total_source / (2 * c²)
+       * @param {number} totalSourceEnergy_joules - Total source energy for the trip in Joules.
+       * @returns {number} Total antimatter mass in kilograms.
+       */
+      function calculateTotalAntimatterMass_kg(totalSourceEnergy_joules) {
+        return totalSourceEnergy_joules / TWO_C_SQUARED;
+      }
+
+      /**
+       * Calculates the volume of water that has an equivalent mass to the given mass.
+       * Equation: Volume = Mass / Density_water
+       * @param {number} mass_kg - Mass in kilograms.
+       * @returns {number} Equivalent volume of water in cubic meters.
+       */
+      function calculateEquivalentWaterVolume_m3(mass_kg) {
+        return mass_kg / DENSITY_WATER_KG_PER_M3;
+      }
+
+      /**
+       * Calculates the side length of a cube that would hold the given volume.
+       * Equation: Side = cbrt(Volume)
+       * @param {number} volume_m3 - Volume in cubic meters.
+       * @returns {number} Side length of the cube in meters.
+       */
+      function calculateWaterCubeSide_m(volume_m3) {
+        return Math.cbrt(volume_m3);
+      }
+
+      /**
+       * Calculates how many seconds of the Sun's total output is equivalent to the given energy.
+       * Equation: Time_solar_seconds = TotalEnergy / Luminosity_Sun
+       * @param {number} totalSourceEnergy_joules - Total energy in Joules.
+       * @returns {number} Equivalent time in seconds of Sun's output.
+       */
+      function calculateSolarEquivalentSeconds(totalSourceEnergy_joules) {
+        return totalSourceEnergy_joules / LUMINOSITY_SUN_WATTS;
+      }
+
+      // --- Get DOM Elements ---
+      const cylinderLengthInputEl = document.getElementById("cylinderLength");
+      const cylinderDiameterInputEl =
+        document.getElementById("cylinderDiameter");
+      const shellThicknessInputEl = document.getElementById("shellThickness");
+      const distanceLYInputEl = document.getElementById("distanceLY");
+      const accelRateInputEl = document.getElementById("accelRate");
+      const engineEfficiencyInputEl =
+        document.getElementById("engineEfficiency");
+      const lightingEfficiencyInputEl =
+        document.getElementById("lightingEfficiency");
+      const maxSpeedPercentCInputEl =
+        document.getElementById("maxSpeedPercentC");
+      // Output elements
+      const massDisplayHeaderEl = document.getElementById(
+        "calculatedMassDisplayHeader"
+      );
+      const massDisplayOutputEl = document.getElementById(
+        "outputCalculatedMass"
+      );
+      const internalSurfaceAreaOutputEl = document.getElementById(
+        "outputInternalSurfaceArea"
+      );
+      const populationOutputEl = document.getElementById("outputPopulation");
+      const lightingPowerOutputEl = document.getElementById(
+        "outputPowerForLighting"
+      );
+      const userTargetVelocityOutputEl = document.getElementById(
+        "outputUserTargetVelocity"
+      );
+      const actualMaxVelocityOutputEl = document.getElementById(
+        "outputActualMaxVelocity"
+      );
+      const accelPowerOutputEl = document.getElementById("outputAccelPower");
+      const totalPower1sOutputEl =
+        document.getElementById("outputTotalPower1s");
+      const antimatterPerSecondOutputEl =
+        document.getElementById("outputAntimatter");
+      const tripDurationOutputEl =
+        document.getElementById("outputTripDuration");
+      const timeAccelOutputEl = document.getElementById("outputTimeAccel");
+      const timeCoastOutputEl = document.getElementById("outputTimeCoast");
+      const timeDecelOutputEl = document.getElementById("outputTimeDecel");
+      const totalAccelEnergyUsefulOutputEl = document.getElementById(
+        "outputTotalAccelEnergyUseful"
+      );
+      const totalLightingEnergyOutputEl = document.getElementById(
+        "outputTotalLightingEnergy"
+      );
+      const totalEnergySourceOutputEl = document.getElementById(
+        "outputTotalEnergySource"
+      );
+      const totalAntimatterMassOutputEl = document.getElementById(
+        "outputTotalAntimatterMass"
+      );
+      const equivalentWaterVolumeOutputEl = document.getElementById(
+        "outputEquivalentWaterVolume"
+      );
+      const waterCubeSideOutputEl = document.getElementById(
+        "outputWaterCubeSide"
+      );
+      const solarEquivalentSecondsOutputEl = document.getElementById(
+        "outputSolarEquivalentSeconds"
+      );
+
+      // Display fixed parameters
+      document.getElementById("shellDensityDisplay").innerHTML =
+        DENSITY_GRANITE_KG_PER_M3.toLocaleString();
+      document.getElementById("speedOfLightDisplay").innerHTML =
+        formatScientific(SPEED_OF_LIGHT_MPS, 3);
+      document.getElementById("metersPerLYDisplay").innerHTML =
+        formatScientific(METERS_PER_LIGHT_YEAR, 4);
+      document.getElementById("solarLuminosityDisplay").innerHTML =
+        formatScientific(LUMINOSITY_SUN_WATTS, 3);
+
+      function calculateOutputs() {
+        // --- 1. Get and Validate Raw Inputs ---
+        let cylinderLength_km = parseFloat(cylinderLengthInputEl.value);
+        let cylinderDiameter_km = parseFloat(cylinderDiameterInputEl.value);
+        let shellThickness_km = parseFloat(shellThicknessInputEl.value);
+        let distanceLY = parseFloat(distanceLYInputEl.value);
+        let accelRate = parseFloat(accelRateInputEl.value);
+        let engineEfficiencyPercent = parseFloat(engineEfficiencyInputEl.value);
+        let lightingEfficiencyPercent = parseFloat(
+          lightingEfficiencyInputEl.value
+        );
+        let rawMaxSpeedInput = maxSpeedPercentCInputEl.value.replace(",", ".");
+        let parsedMaxSpeed = parseFloat(rawMaxSpeedInput);
+        let finalMaxSpeedPercentC;
+
+        // --- 2. Cylinder Properties Calculations & Validation ---
+        let cylinderMass_kg = NaN;
+        let internalSurfaceArea_km2 = NaN;
+        let estimatedPopulation = NaN;
+        let lightingSourcePower_watts = NaN;
+        let shellPropsError = null;
+
+        const shellProps = calculateCylinderShellProperties(
+          cylinderLength_km,
+          cylinderDiameter_km,
+          shellThickness_km
+        );
+        shellPropsError = shellProps.error;
+
+        let massDisplayString = "N/A kg";
+        let surfaceAreaDisplayString = "N/A km²";
+        let populationDisplayString = "N/A";
+        let lightingPowerDisplayString = "N/A TW";
+
+        if (shellPropsError) {
+          massDisplayString = shellPropsError;
+          surfaceAreaDisplayString = shellPropsError;
+          populationDisplayString = shellPropsError;
+          lightingPowerDisplayString = shellPropsError;
+        } else if (
+          isNaN(shellProps.shellVolume_m3) ||
+          isNaN(shellProps.innerRadius_m)
+        ) {
+          massDisplayString = `Invalid Dimensions`;
+          surfaceAreaDisplayString = `Invalid Dimensions`;
+          populationDisplayString = `Invalid Dimensions`;
+          lightingPowerDisplayString = `Invalid Dimensions`;
+        } else {
+          cylinderMass_kg = calculateCylinderMass_kg(
+            shellProps.shellVolume_m3,
+            DENSITY_GRANITE_KG_PER_M3
+          );
+          massDisplayString = `${formatScientific(cylinderMass_kg, 4)} kg`;
+
+          internalSurfaceArea_km2 = calculateInternalSurfaceArea_km2(
+            shellProps.innerRadius_m,
+            shellProps.length_m
+          );
+          surfaceAreaDisplayString = `${formatScientific(
+            internalSurfaceArea_km2,
+            4
+          )} km²`;
+
+          estimatedPopulation = calculatePopulation(
+            internalSurfaceArea_km2,
+            POPULATION_DENSITY_PER_KM2
+          );
+          populationDisplayString = `${estimatedPopulation.toLocaleString(
+            undefined,
+            { maximumFractionDigits: 0 }
+          )} people`;
+
+          if (
+            isNaN(lightingEfficiencyPercent) ||
+            lightingEfficiencyPercent < 1 ||
+            lightingEfficiencyPercent > 100
+          ) {
+            lightingEfficiencyPercent = 100;
+            lightingEfficiencyInputEl.value =
+              lightingEfficiencyPercent.toString();
+          }
+          lightingSourcePower_watts = calculateLightingSourcePower_watts(
+            internalSurfaceArea_km2,
+            TARGET_ILLUMINATION_WATTS_PER_M2,
+            lightingEfficiencyPercent
+          );
+          lightingPowerDisplayString = `${formatScientific(
+            lightingSourcePower_watts / JOULES_PER_TW_SECOND,
+            4
+          )} TW`;
+        }
+        massDisplayHeaderEl.innerHTML = `Calculated Cylinder Mass: ${massDisplayString}`;
+        massDisplayOutputEl.innerHTML = `<strong>Calculated Cylinder Mass:</strong> ${massDisplayString}`;
+        internalSurfaceAreaOutputEl.innerHTML = `<strong>Internal Surface Area of Cylinder:</strong> ${surfaceAreaDisplayString}`;
+        populationOutputEl.innerHTML = `<strong>Estimated Population:</strong> ${populationDisplayString}`;
+        lightingPowerOutputEl.innerHTML = `<strong>Power for Lighting (P<sub>lighting_source</sub>):</strong> ${lightingPowerDisplayString}`;
+
+        // --- 3. Trip Parameter Validation & Processing ---
+        if (distanceLY < 0.000001) distanceLY = 0.000001;
+        distanceLYInputEl.value = distanceLY.toString();
+        if (accelRate < 0.000001) accelRate = 0.000001;
+        accelRateInputEl.value = accelRate.toString();
+        if (engineEfficiencyPercent < 1) engineEfficiencyPercent = 1;
+        if (engineEfficiencyPercent > 100) engineEfficiencyPercent = 100;
+        engineEfficiencyInputEl.value = engineEfficiencyPercent.toString();
+
+        if (!isNaN(parsedMaxSpeed)) {
+          finalMaxSpeedPercentC = parsedMaxSpeed;
+          let capped = false;
+          if (finalMaxSpeedPercentC < 0.001) {
+            finalMaxSpeedPercentC = 0.001;
+            capped = true;
+          }
+          if (finalMaxSpeedPercentC > MAX_SPEED_PERCENT_OF_C_CAP) {
+            finalMaxSpeedPercentC = MAX_SPEED_PERCENT_OF_C_CAP;
+            capped = true;
+          }
+          if (capped) {
+            maxSpeedPercentCInputEl.value = finalMaxSpeedPercentC.toString();
+          }
+        } else {
+          finalMaxSpeedPercentC = NaN;
+        }
+
+        const engineEfficiency_decimal = engineEfficiencyPercent / 100;
+        const P_operational_watts = lightingSourcePower_watts;
+        const D_total_meters = distanceLY * METERS_PER_LIGHT_YEAR;
+        const v_target_mps = calculateTargetVelocity_mps(finalMaxSpeedPercentC);
+
+        userTargetVelocityOutputEl.innerHTML = `<strong>User Target Velocity (v<sub>target</sub>):</strong> ${
+          !isNaN(v_target_mps) ? formatScientific(v_target_mps, 4) : "N/A"
+        } m/s (${
+          !isNaN(finalMaxSpeedPercentC)
+            ? finalMaxSpeedPercentC.toFixed(3)
+            : "N/A"
+        }% of c)`;
+
+        // --- 4. Main Validation Check for Trip Calculations ---
+        const essentialInputsValid =
+          !isNaN(cylinderMass_kg) &&
+          !isNaN(lightingSourcePower_watts) &&
+          !isNaN(distanceLY) &&
+          !isNaN(accelRate) &&
+          !isNaN(engineEfficiencyPercent) &&
+          !isNaN(finalMaxSpeedPercentC) &&
+          accelRate > 0 &&
+          distanceLY > 0;
+
+        if (!essentialInputsValid || shellPropsError) {
+          const invalidMsg = shellPropsError || "Invalid input for trip calc.";
+          actualMaxVelocityOutputEl.innerHTML = `<strong>Actual Max Velocity Reached (v<sub>max_actual</sub>):</strong> ${invalidMsg}`;
+          accelPowerOutputEl.innerHTML = `<strong>Useful Accel. Power (initial, 1st sec avg):</strong> ${invalidMsg}`;
+          totalPower1sOutputEl.innerHTML = `<strong>Total Source Power (initial, 1st sec accel, incl. lighting):</strong> ${invalidMsg}`;
+          antimatterPerSecondOutputEl.innerHTML = `<strong>Antimatter per Second (during initial 1st sec accel):</strong> ${invalidMsg}`;
+          tripDurationOutputEl.innerHTML = `<strong>Total Trip Duration (accel, coast, decel):</strong> ${invalidMsg}`;
+          timeAccelOutputEl.innerHTML = `<strong>Time Spent Accelerating:</strong> ${invalidMsg}`;
+          timeCoastOutputEl.innerHTML = `<strong>Time Spent Coasting:</strong> ${invalidMsg}`;
+          timeDecelOutputEl.innerHTML = `<strong>Time Spent Decelerating:</strong> ${invalidMsg}`;
+          totalAccelEnergyUsefulOutputEl.innerHTML = `<strong>Total Useful Kinetic Energy Gained (to v<sub>max_actual</sub>):</strong> ${invalidMsg}`;
+          totalLightingEnergyOutputEl.innerHTML = `<strong>Total Lighting Source Energy (for trip duration):</strong> ${invalidMsg}`;
+          totalEnergySourceOutputEl.innerHTML = `<strong>Total Source Energy Expended for Trip (E<sub>source</sub>):</strong> ${invalidMsg}`;
+          totalAntimatterMassOutputEl.innerHTML = `<strong>Total Antimatter Mass (for trip, from E<sub>source</sub>):</strong> ${invalidMsg}`;
+          equivalentWaterVolumeOutputEl.innerHTML = `<strong>Equivalent Water Volume (for total antimatter mass):</strong> ${invalidMsg}`;
+          waterCubeSideOutputEl.innerHTML = `<strong>Side Length of Water Cube (for equivalent volume):</strong> ${invalidMsg}`;
+          solarEquivalentSecondsOutputEl.innerHTML = `<strong>Equivalent Seconds of Solar Output (for E<sub>source</sub>):</strong> ${invalidMsg}`;
+          return;
+        }
+
+        // --- 5. Trip Profile Calculation ---
+        const tripProfile = calculateTripProfile(
+          D_total_meters,
+          v_target_mps,
+          accelRate
+        );
+        const {
+          v_max_actual_mps,
+          t_accel_seconds,
+          t_coast_seconds,
+          t_decel_seconds,
+          t_total_seconds,
+        } = tripProfile;
+
+        // --- 6. Power & Energy Calculations ---
+        const usefulAccelPower1sWatts = calculateInitialUsefulAccelPower_watts(
+          cylinderMass_kg,
+          accelRate
+        );
+        const totalSourcePower1sWatts_accel_phase =
+          calculateInitialTotalSourcePower_watts(
+            usefulAccelPower1sWatts,
+            engineEfficiency_decimal,
+            P_operational_watts
+          );
+        const antimatterGsPerSecond_initial_accel =
+          calculateAntimatterPerSecond_gs(totalSourcePower1sWatts_accel_phase);
+
+        const usefulKeFinalJoules = calculateUsefulKeFinal_joules(
+          cylinderMass_kg,
+          v_max_actual_mps
+        );
+        const totalLightingSourceEnergyJoules =
+          calculateTotalOperationalEnergy_joules(
+            P_operational_watts,
+            t_total_seconds
+          );
+        const totalSourceEnergyJoules =
+          calculateTotalSourceEnergyForTrip_joules(
+            usefulKeFinalJoules,
+            engineEfficiency_decimal,
+            totalLightingSourceEnergyJoules
+          );
+
+        const totalAntimatterMassKg = calculateTotalAntimatterMass_kg(
+          totalSourceEnergyJoules
+        );
+        const totalAntimatterMassTonnes = totalAntimatterMassKg / KG_PER_TONNE;
+        const equivalentWaterVolumeM3 = calculateEquivalentWaterVolume_m3(
+          totalAntimatterMassKg
+        );
+        const waterCubeSideM = calculateWaterCubeSide_m(
+          equivalentWaterVolumeM3
+        );
+        const equivalentSolarSeconds = calculateSolarEquivalentSeconds(
+          totalSourceEnergyJoules
+        );
+
+        // --- 7. Display Outputs ---
+        const precisionForOutputs = 4;
+        actualMaxVelocityOutputEl.innerHTML = `<strong>Actual Max Velocity Reached (v<sub>max_actual</sub>):</strong> ${formatScientific(
+          v_max_actual_mps,
+          precisionForOutputs
+        )} m/s (${((v_max_actual_mps / SPEED_OF_LIGHT_MPS) * 100).toFixed(
+          3
+        )}% of c)`;
+        accelPowerOutputEl.innerHTML = `<strong>Useful Accel. Power (initial, 1st sec avg):</strong> ${formatScientific(
+          usefulAccelPower1sWatts / JOULES_PER_TW_SECOND,
+          precisionForOutputs
+        )} TW`;
+        totalPower1sOutputEl.innerHTML = `<strong>Total Source Power (initial, 1st sec accel, incl. lighting):</strong> ${formatScientific(
+          totalSourcePower1sWatts_accel_phase / JOULES_PER_TW_SECOND,
+          precisionForOutputs
+        )} TW`;
+        antimatterPerSecondOutputEl.innerHTML = `<strong>Antimatter per Second (during initial 1st sec accel):</strong> ${formatScientific(
+          antimatterGsPerSecond_initial_accel,
+          precisionForOutputs
+        )} g/s`;
+
+        tripDurationOutputEl.innerHTML = `<strong>Total Trip Duration (accel, coast, decel):</strong> ${formatTime(
+          t_total_seconds,
+          precisionForOutputs
+        )}`;
+        timeAccelOutputEl.innerHTML = `<strong>Time Spent Accelerating:</strong> ${formatTime(
+          t_accel_seconds,
+          precisionForOutputs
+        )}`;
+        timeCoastOutputEl.innerHTML = `<strong>Time Spent Coasting:</strong> ${formatTime(
+          t_coast_seconds,
+          precisionForOutputs
+        )}`;
+        timeDecelOutputEl.innerHTML = `<strong>Time Spent Decelerating:</strong> ${formatTime(
+          t_decel_seconds,
+          precisionForOutputs
+        )}`;
+
+        totalAccelEnergyUsefulOutputEl.innerHTML = `<strong>Total Useful Kinetic Energy Gained (to v<sub>max_actual</sub>):</strong> ${formatScientific(
+          usefulKeFinalJoules / JOULES_PER_TERAJOULE,
+          precisionForOutputs
+        )} TJ <em>(${formatScientific(
+          usefulKeFinalJoules,
+          precisionForOutputs
+        )} J)</em>`;
+        totalLightingEnergyOutputEl.innerHTML = `<strong>Total Lighting Source Energy (for trip duration):</strong> ${formatScientific(
+          totalLightingSourceEnergyJoules / JOULES_PER_TERAJOULE,
+          precisionForOutputs
+        )} TJ <em>(${formatScientific(
+          totalLightingSourceEnergyJoules,
+          precisionForOutputs
+        )} J)</em>`;
+        totalEnergySourceOutputEl.innerHTML = `<strong>Total Source Energy Expended for Trip (E<sub>source</sub>):</strong> ${formatScientific(
+          totalSourceEnergyJoules / JOULES_PER_TERAJOULE,
+          precisionForOutputs
+        )} TJ <em>(${formatScientific(
+          totalSourceEnergyJoules,
+          precisionForOutputs
+        )} J)</em>`;
+
+        totalAntimatterMassOutputEl.innerHTML = `<strong>Total Antimatter Mass (for trip, from E<sub>source</sub>):</strong> ${formatScientific(
+          totalAntimatterMassTonnes,
+          precisionForOutputs
+        )} tonnes`;
+        equivalentWaterVolumeOutputEl.innerHTML = `<strong>Equivalent Water Volume (for total antimatter mass):</strong> ${formatScientific(
+          equivalentWaterVolumeM3,
+          precisionForOutputs
+        )} m<sup>3</sup>`;
+        waterCubeSideOutputEl.innerHTML = `<strong>Side Length of Water Cube (for equivalent volume):</strong> ${formatScientific(
+          waterCubeSideM,
+          precisionForOutputs
+        )} m`;
+        solarEquivalentSecondsOutputEl.innerHTML = `<strong>Equivalent Seconds of Solar Output (for E<sub>source</sub>):</strong> ${formatTime(
+          equivalentSolarSeconds,
+          precisionForOutputs
+        )}`;
+      }
+
+      // Add event listeners for real-time updates
+      cylinderLengthInputEl.addEventListener("input", calculateOutputs);
+      cylinderDiameterInputEl.addEventListener("input", calculateOutputs);
+      shellThicknessInputEl.addEventListener("input", calculateOutputs);
+      distanceLYInputEl.addEventListener("input", calculateOutputs);
+      accelRateInputEl.addEventListener("input", calculateOutputs);
+      engineEfficiencyInputEl.addEventListener("input", calculateOutputs);
+      lightingEfficiencyInputEl.addEventListener("input", calculateOutputs);
+      maxSpeedPercentCInputEl.addEventListener("input", calculateOutputs);
+
+      // Perform an initial calculation on page load with default values
+      window.onload = calculateOutputs;
+    </script>
+  </body>
+</html>

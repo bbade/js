@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Falling Sand Game - Multi-Script Refactor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        overscroll-behavior: none;
+      }
+      canvas {
+        image-rendering: pixelated;
+        border: 1px solid #4a5568;
+      }
+      .toolbar-item {
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        border: 2px solid transparent;
+      }
+      .toolbar-item.selected {
+        border-color: #4299e1;
+        background-color: #ebf8ff;
+      }
+      .toolbar-preview {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        border: 1px solid #cbd5e0;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-900 text-white flex flex-col md:flex-row items-center justify-center min-h-screen p-4 select-none"
+  >
+    <div
+      id="toolbar"
+      class="bg-gray-800 p-4 rounded-lg shadow-xl mr-0 md:mr-4 mb-4 md:mb-0 flex flex-row md:flex-col overflow-x-auto md:overflow-x-hidden md:overflow-y-auto md:max-h-[calc(100vh-2rem)]"
+    ></div>
+
+    <div class="relative">
+      <canvas id="gameCanvas"></canvas>
+      <div
+        id="messageOverlay"
+        class="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center text-xl p-4 rounded-lg text-center hidden"
+      ></div>
+    </div>
+
+    <div class="mt-4 md:ml-4 flex flex-col items-center md:items-start">
+      <button
+        id="pauseButton"
+        class="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2 px-4 rounded-lg shadow mb-2 w-32"
+      >
+        Pause
+      </button>
+      <button
+        id="resetButton"
+        class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow mb-2 w-32"
+      >
+        Reset
+      </button>
+      <div class="text-sm text-gray-400">
+        <p>Brush Size:</p>
+        <input
+          type="range"
+          id="brushSize"
+          min="1"
+          max="10"
+          value="3"
+          class="w-32"
+        />
+        <span id="brushSizeValue">3</span>
+      </div>
+      <div class="text-sm text-gray-400 mt-2">
+        <p>Canvas Size (Grid):</p>
+        <select
+          id="canvasSizeSelector"
+          class="bg-gray-700 text-white p-1 rounded w-32"
+        >
+          <option value="32">32x32</option>
+          <option value="64" selected>64x64</option>
+          <option value="96">96x96</option>
+          <option value="128">128x128</option>
+        </select>
+      </div>
+    </div>
+
+    <script id="game-config">
+      // --- Game Configuration ---
+      const GameConfig = {
+        PIXEL_SCALE: 4,
+        DEFAULT_GRID_WIDTH: 64,
+        DEFAULT_GRID_HEIGHT: 64,
+        FPS: 30,
+        TOOLBAR_PREVIEW_SIZE: 24,
+        MIN_BRUSH_SIZE: 1,
+        MAX_BRUSH_SIZE: 10,
+        DEFAULT_BRUSH_SIZE: 3,
+      };
+    </script>
+
+    <script id="game-utils">
+      // --- Utility Functions ---
+      /**
+       * Simulates a coin flip, returning -1 or 1 with equal probability.
+       * @returns {number} -1 or 1
+       */
+      function coinFlip() {
+        return Math.random() < 0.5 ? -1 : 1;
+      }
+    </script>
+
+    <script id="game-materials">
+      // --- Material Definitions ---
+      const MaterialType = {
+        EMPTY: 0,
+        SAND: 1,
+        WATER: 2,
+        STONE: 3,
+        WOOD: 4,
+        FIRE: 5,
+        SMOKE: 6,
+        STEAM: 7,
+        WOOD_FIRE: 8,
+      };
+
+      const Materials = {
+        [MaterialType.SAND]: {
+          name: "Sand",
+          baseColor: [210, 180, 140],
+          colorVariation: 20,
+          isStatic: false,
+          density: 5,
+          slipperiness: 0,
+        },
+        [MaterialType.WATER]: {
+          name: "Water",
+          baseColor: [30, 144, 255],
+          colorVariation: 5,
+          isStatic: false,
+          density: 2,
+          slipperiness: 0.9,
+        },
+        [MaterialType.STONE]: {
+          name: "Stone",
+          baseColor: [128, 128, 128],
+          colorVariation: 10,
+          isStatic: true,
+          density: 10,
+        },
+        [MaterialType.WOOD]: {
+          name: "Wood",
+          baseColor: [139, 69, 19],
+          colorVariation: 15,
+          isStatic: true,
+          density: 3,
+          isFlammable: true,
+        },
+        [MaterialType.FIRE]: {
+          name: "Fire",
+          baseColor: [255, 100, 0],
+          colorVariation: 40,
+          isStatic: false,
+          density: 0.7,
+          initialLifeMin: 10,
+          initialLifeMax: 30,
+          smokeChance: 0.15,
+          spreadToWoodChance: 0.4,
+          spreadToAirChance: 0.01,
+          selfExtinguishChance: 0.1,
+        },
+        [MaterialType.WOOD_FIRE]: {
+          name: "Wood Fire",
+          baseColor: [255, 120, 0],
+          colorVariation: 40,
+          isStatic: false,
+          density: 0.7,
+          initialLifeMin: GameConfig.FPS * 1,
+          initialLifeMax: GameConfig.FPS * 10,
+          smokeChance: 0.2,
+          spreadToWoodChance: 0.5,
+          spreadToAirChance: 0,
+          selfExtinguishChance: 0.01,
+        },
+        [MaterialType.SMOKE]: {
+          name: "Smoke",
+          baseColor: [100, 100, 100],
+          colorVariation: 15,
+          isStatic: false,
+          density: 0.5,
+          slipperiness: 0.6,
+          despawnChance: 1 / 200,
+        },
+        [MaterialType.STEAM]: {
+          name: "Steam",
+          baseColor: [180, 180, 190],
+          colorVariation: 10,
+          isStatic: false,
+          density: 0.4,
+          slipperiness: 0.65,
+          condenseChance: 1 / 250,
+        },
+      };
+    </script>
+
+    <script id="game-grain">
+      // --- Grain Class ---
+      class Grain {
+        constructor(x, y, materialType) {
+          this.x = x;
+          this.y = y;
+          this.materialType = materialType;
+          this.material = Materials[materialType]; // Depends on Materials
+
+          if (!this.material) {
+            console.error(
+              `Grain constructor ERROR: Invalid materialType: ${materialType}. Defaulting to STONE.`
+            );
+            this.materialType = MaterialType.STONE; // Depends on MaterialType
+            this.material = Materials[MaterialType.STONE];
+          }
+          this.color = this._generateColor(
+            this.material.baseColor,
+            this.material.colorVariation
+          );
+          this.updatedThisFrame = false;
+
+          if (
+            this.materialType === MaterialType.FIRE ||
+            this.materialType === MaterialType.WOOD_FIRE
+          ) {
+            const fireProps = this.material;
+            this.life =
+              fireProps.initialLifeMin +
+              Math.floor(
+                Math.random() *
+                  (fireProps.initialLifeMax - fireProps.initialLifeMin + 1)
+              );
+          }
+        }
+
+        _generateColor(base, variation) {
+          const r =
+            base[0] +
+            Math.floor(Math.random() * (variation * 2 + 1)) -
+            variation;
+          const g =
+            base[1] +
+            Math.floor(Math.random() * (variation * 2 + 1)) -
+            variation;
+          const b =
+            base[2] +
+            Math.floor(Math.random() * (variation * 2 + 1)) -
+            variation;
+          return `rgb(${Math.max(0, Math.min(255, r))}, ${Math.max(
+            0,
+            Math.min(255, g)
+          )}, ${Math.max(0, Math.min(255, b))})`;
+        }
+      }
+    </script>
+
+    <script id="game-board">
+      // --- Game Board Class ---
+      class GameBoard {
+        constructor(width, height) {
+          this.width = width;
+          this.height = height;
+          this.grid = Array(height)
+            .fill(null)
+            .map(() => Array(width).fill(null));
+        }
+
+        getGrain(x, y) {
+          if (x < 0 || x >= this.width || y < 0 || y >= this.height)
+            return MaterialType.STONE; // Depends on MaterialType
+          return this.grid[y][x];
+        }
+
+        setGrain(x, y, grain) {
+          // grain can be Grain object or null
+          if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+          this.grid[y][x] = grain;
+          if (grain && typeof grain === "object") {
+            // grain is a Grain instance
+            grain.x = x;
+            grain.y = y;
+            grain.updatedThisFrame = true;
+          }
+        }
+
+        isEmpty(x, y) {
+          if (x < 0 || x >= this.width || y < 0 || y >= this.height)
+            return false;
+          return this.grid[y][x] === null;
+        }
+
+        isPassableBy(x, y, movingGrainMaterial) {
+          // movingGrainMaterial is from Materials
+          if (x < 0 || x >= this.width || y < 0 || y >= this.height)
+            return false;
+          const targetCellContent = this.grid[y][x]; // Could be Grain or null
+          if (targetCellContent === null) return true;
+          if (targetCellContent.updatedThisFrame) return false;
+          if (targetCellContent.material.isStatic) return false; // targetCellContent is a Grain
+          return (
+            movingGrainMaterial.density > targetCellContent.material.density
+          );
+        }
+
+        swap(x1, y1, x2, y2) {
+          const grain1 = this.grid[y1][x1];
+          const grain2 = this.grid[y2][x2];
+          this.setGrain(x2, y2, grain1);
+          this.setGrain(x1, y1, grain2);
+        }
+      }
+    </script>
+
+    <script id="game-renderer">
+      // --- Renderer Class ---
+      class Renderer {
+        constructor(canvasId) {
+          this.canvas = document.getElementById(canvasId);
+          this.ctx = this.canvas.getContext("2d");
+          this.ctx.imageSmoothingEnabled = false; // For crisp pixels
+        }
+
+        resize(gridWidth, gridHeight) {
+          this.canvas.width = gridWidth * GameConfig.PIXEL_SCALE; // Depends on GameConfig
+          this.canvas.height = gridHeight * GameConfig.PIXEL_SCALE;
+        }
+
+        draw(gameBoard) {
+          // gameBoard is an instance of GameBoard
+          this.ctx.fillStyle = "#1a202c"; // bg-gray-800
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+          for (let y = 0; y < gameBoard.height; y++) {
+            for (let x = 0; x < gameBoard.width; x++) {
+              const grain = gameBoard.grid[y][x]; // grain is a Grain instance or null
+              if (grain) {
+                this.ctx.fillStyle = grain.color;
+                this.ctx.fillRect(
+                  x * GameConfig.PIXEL_SCALE,
+                  y * GameConfig.PIXEL_SCALE,
+                  GameConfig.PIXEL_SCALE,
+                  GameConfig.PIXEL_SCALE
+                );
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <script id="game-simulation">
+      // --- Simulation Class ---
+      class Simulation {
+        constructor(gameBoard) {
+          this.gameBoard = gameBoard; // Instance of GameBoard
+        }
+
+        update() {
+          // Reset updatedThisFrame flag for all grains
+          for (let y = 0; y < this.gameBoard.height; y++) {
+            for (let x = 0; x < this.gameBoard.width; x++) {
+              const grain = this.gameBoard.grid[y][x];
+              if (grain) grain.updatedThisFrame = false;
+            }
+          }
+
+          // Update grains from bottom-up
+          for (let y = this.gameBoard.height - 1; y >= 0; y--) {
+            const scanOrder =
+              y % 2 === 0
+                ? Array.from({ length: this.gameBoard.width }, (_, i) => i)
+                : Array.from(
+                    { length: this.gameBoard.width },
+                    (_, i) => this.gameBoard.width - 1 - i
+                  );
+            for (const currentX of scanOrder) {
+              const grain = this.gameBoard.grid[y][currentX];
+              if (
+                grain &&
+                !grain.material.isStatic &&
+                !grain.updatedThisFrame
+              ) {
+                this._updateGrain(grain);
+              }
+            }
+          }
+        }
+
+        _handleFireBehavior(grain, mat, x, y) {
+          // grain is Grain, mat is from Materials
+          grain.life--;
+          if (grain.life <= 0) {
+            this.gameBoard.setGrain(x, y, null);
+            return true;
+          }
+          if (Math.random() < mat.selfExtinguishChance) {
+            this.gameBoard.setGrain(x, y, null);
+            return true;
+          }
+
+          const grainAbove = this.gameBoard.getGrain(x, y - 1);
+          if (
+            grainAbove &&
+            typeof grainAbove === "object" &&
+            grainAbove.materialType === MaterialType.WATER
+          ) {
+            // Depends on MaterialType
+            this.gameBoard.setGrain(x, y, null);
+            this.gameBoard.setGrain(
+              x,
+              y - 1,
+              new Grain(x, y - 1, MaterialType.STEAM)
+            ); // Depends on Grain
+            return true;
+          }
+
+          const spreadDirections = [
+            { dx: 0, dy: -1 },
+            { dx: 1, dy: 0 },
+            { dx: -1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: 1, dy: -1 },
+            { dx: -1, dy: -1 },
+            { dx: 1, dy: 1 },
+            { dx: -1, dy: 1 },
+          ].sort(() => 0.5 - Math.random());
+          for (const offset of spreadDirections) {
+            const nx = x + offset.dx;
+            const ny = y + offset.dy;
+            const targetCell = this.gameBoard.getGrain(nx, ny);
+            if (
+              targetCell &&
+              typeof targetCell === "object" &&
+              targetCell.material.isFlammable &&
+              !targetCell.updatedThisFrame
+            ) {
+              if (Math.random() < mat.spreadToWoodChance)
+                this.gameBoard.setGrain(
+                  nx,
+                  ny,
+                  new Grain(nx, ny, MaterialType.WOOD_FIRE)
+                );
+            } else if (targetCell === null) {
+              if (
+                mat.spreadToAirChance > 0 &&
+                Math.random() < mat.spreadToAirChance
+              )
+                this.gameBoard.setGrain(
+                  nx,
+                  ny,
+                  new Grain(nx, ny, MaterialType.FIRE)
+                );
+            }
+          }
+
+          if (
+            this.gameBoard.isEmpty(x, y - 1) &&
+            Math.random() < mat.smokeChance
+          )
+            this.gameBoard.setGrain(
+              x,
+              y - 1,
+              new Grain(x, y - 1, MaterialType.SMOKE)
+            );
+
+          if (this.gameBoard.isPassableBy(x, y - 1, mat)) {
+            this.gameBoard.swap(x, y, x, y - 1);
+            return true;
+          }
+          const fireMoveDir = coinFlip(); // Depends on coinFlip
+          if (this.gameBoard.isPassableBy(x + fireMoveDir, y - 1, mat)) {
+            this.gameBoard.swap(x, y, x + fireMoveDir, y - 1);
+            return true;
+          }
+          return false;
+        }
+
+        _updateGrain(grain) {
+          // grain is Grain
+          const mat = grain.material;
+          const x = grain.x;
+          const y = grain.y;
+
+          if (
+            grain.materialType === MaterialType.FIRE ||
+            grain.materialType === MaterialType.WOOD_FIRE
+          ) {
+            if (this._handleFireBehavior(grain, mat, x, y)) return;
+            return;
+          }
+
+          if (
+            grain.materialType === MaterialType.SMOKE ||
+            grain.materialType === MaterialType.STEAM
+          ) {
+            if (
+              grain.materialType === MaterialType.SMOKE &&
+              Math.random() < mat.despawnChance
+            ) {
+              this.gameBoard.setGrain(x, y, null);
+              return;
+            }
+            if (
+              grain.materialType === MaterialType.STEAM &&
+              Math.random() < mat.condenseChance
+            ) {
+              this.gameBoard.setGrain(
+                x,
+                y,
+                new Grain(x, y, MaterialType.WATER)
+              );
+              return;
+            }
+
+            if (this.gameBoard.isPassableBy(x, y - 1, mat)) {
+              this.gameBoard.swap(x, y, x, y - 1);
+              return;
+            }
+            const gasDir = coinFlip();
+            if (this.gameBoard.isPassableBy(x + gasDir, y - 1, mat)) {
+              this.gameBoard.swap(x, y, x + gasDir, y - 1);
+              return;
+            }
+            if (this.gameBoard.isPassableBy(x - gasDir, y - 1, mat)) {
+              this.gameBoard.swap(x, y, x - gasDir, y - 1);
+              return;
+            }
+            if (Math.random() < mat.slipperiness) {
+              const flowDir = coinFlip();
+              if (this.gameBoard.isPassableBy(x + flowDir, y, mat)) {
+                this.gameBoard.swap(x, y, x + flowDir, y);
+                return;
+              }
+              if (this.gameBoard.isPassableBy(x - flowDir, y, mat)) {
+                this.gameBoard.swap(x, y, x - flowDir, y);
+                return;
+              }
+            }
+            return;
+          }
+
+          if (this.gameBoard.isPassableBy(x, y + 1, mat)) {
+            this.gameBoard.swap(x, y, x, y + 1);
+            return;
+          }
+          const dir = coinFlip();
+          if (this.gameBoard.isPassableBy(x + dir, y + 1, mat)) {
+            this.gameBoard.swap(x, y, x + dir, y + 1);
+            return;
+          }
+          if (this.gameBoard.isPassableBy(x - dir, y + 1, mat)) {
+            this.gameBoard.swap(x, y, x - dir, y + 1);
+            return;
+          }
+
+          if (
+            grain.materialType === MaterialType.WATER &&
+            Math.random() < mat.slipperiness
+          ) {
+            const flowDir = coinFlip();
+            if (this.gameBoard.isPassableBy(x + flowDir, y, mat)) {
+              this.gameBoard.swap(x, y, x + flowDir, y);
+              return;
+            }
+            if (this.gameBoard.isPassableBy(x - flowDir, y, mat)) {
+              this.gameBoard.swap(x, y, x - flowDir, y);
+              return;
+            }
+          }
+        }
+      }
+    </script>
+
+    <script id="game-toolbar">
+      // --- Toolbar Class ---
+      class Toolbar {
+        constructor(toolbarElementId, onMaterialSelectCallback) {
+          this.toolbarElement = document.getElementById(toolbarElementId);
+          this.onMaterialSelect = onMaterialSelectCallback; // Callback to notify GameEngine
+          this._setup();
+        }
+
+        _setup() {
+          this.toolbarElement.innerHTML = "";
+          Object.values(MaterialType).forEach((type) => {
+            // Depends on MaterialType
+            // Materials not selectable in toolbar
+            if (
+              type === MaterialType.EMPTY ||
+              type === MaterialType.SMOKE ||
+              type === MaterialType.STEAM ||
+              type === MaterialType.WOOD_FIRE
+            )
+              return;
+
+            const material = Materials[type]; // Depends on Materials
+            if (!material) {
+              console.error(
+                "Toolbar: Material definition missing for type:",
+                type
+              );
+              return;
+            }
+
+            const item = document.createElement("div");
+            item.className =
+              "toolbar-item bg-gray-700 hover:bg-gray-600 transition-colors duration-150";
+            item.dataset.materialType = type;
+
+            const previewCanvas = document.createElement("canvas");
+            previewCanvas.width = GameConfig.TOOLBAR_PREVIEW_SIZE; // Depends on GameConfig
+            previewCanvas.height = GameConfig.TOOLBAR_PREVIEW_SIZE;
+            previewCanvas.className = "toolbar-preview";
+            this._drawMaterialPreview(previewCanvas, material);
+
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = material.name;
+            nameSpan.className = "ml-2 text-sm";
+
+            item.appendChild(previewCanvas);
+            item.appendChild(nameSpan);
+            item.addEventListener("click", () => this.onMaterialSelect(type));
+            this.toolbarElement.appendChild(item);
+          });
+        }
+
+        _drawMaterialPreview(canvas, material) {
+          // material is from Materials
+          const ctx = canvas.getContext("2d");
+          ctx.imageSmoothingEnabled = false;
+          const colorGeneratorGrain = new Grain(0, 0, MaterialType.SAND); // Dummy for color generation, depends on Grain
+          const previewCellSize = Math.max(
+            1,
+            Math.floor(GameConfig.TOOLBAR_PREVIEW_SIZE / 4)
+          );
+          for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 4; c++) {
+              ctx.fillStyle = colorGeneratorGrain._generateColor(
+                material.baseColor,
+                material.colorVariation
+              ); // Accessing private-like method
+              ctx.fillRect(
+                c * previewCellSize,
+                r * previewCellSize,
+                previewCellSize,
+                previewCellSize
+              );
+            }
+          }
+        }
+
+        updateSelectedVisual(selectedType) {
+          const items = this.toolbarElement.querySelectorAll(".toolbar-item");
+          items.forEach((item) => {
+            if (parseInt(item.dataset.materialType) === selectedType) {
+              item.classList.add(
+                "selected",
+                "border-blue-500",
+                "bg-blue-100",
+                "text-blue-700",
+                "font-semibold"
+              );
+              item.classList.remove("bg-gray-700", "hover:bg-gray-600");
+            } else {
+              item.classList.remove(
+                "selected",
+                "border-blue-500",
+                "bg-blue-100",
+                "text-blue-700",
+                "font-semibold"
+              );
+              item.classList.add("bg-gray-700", "hover:bg-gray-600");
+            }
+          });
+        }
+      }
+    </script>
+
+    <script id="game-canvas-input-handler">
+      // --- CanvasInputHandler Class ---
+      class CanvasInputHandler {
+        constructor(canvas, placeCallback, deleteCallback) {
+          this.canvas = canvas;
+          this.placeCallback = placeCallback; // e.g., gameEngine._placeOrDelete(x,y,false)
+          this.deleteCallback = deleteCallback; // e.g., gameEngine._placeOrDelete(x,y,true)
+          this.isLeftMouseDown = false;
+          this.isRightMouseDown = false;
+          this._setupListeners();
+        }
+
+        _getCanvasCoordinates(event) {
+          const rect = this.canvas.getBoundingClientRect();
+          let clientX, clientY;
+          if (event.touches && event.touches.length > 0) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+          } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
+          }
+          return {
+            x: clientX - rect.left,
+            y: clientY - rect.top,
+          };
+        }
+
+        _setupListeners() {
+          this.canvas.addEventListener("mousedown", (e) => {
+            const coords = this._getCanvasCoordinates(e);
+            if (e.button === 0) {
+              // Left click
+              this.isLeftMouseDown = true;
+              this.placeCallback(coords.x, coords.y);
+            } else if (e.button === 2) {
+              // Right click
+              this.isRightMouseDown = true;
+              this.deleteCallback(coords.x, coords.y);
+              e.preventDefault();
+            }
+          });
+
+          this.canvas.addEventListener("mousemove", (e) => {
+            const coords = this._getCanvasCoordinates(e);
+            if (this.isLeftMouseDown) this.placeCallback(coords.x, coords.y);
+            else if (this.isRightMouseDown)
+              this.deleteCallback(coords.x, coords.y);
+          });
+
+          // Use document for mouseup to catch releases outside canvas
+          document.addEventListener("mouseup", (e) => {
+            if (e.button === 0) this.isLeftMouseDown = false;
+            else if (e.button === 2) this.isRightMouseDown = false;
+          });
+
+          this.canvas.addEventListener("contextmenu", (e) =>
+            e.preventDefault()
+          );
+
+          this.canvas.addEventListener(
+            "touchstart",
+            (e) => {
+              e.preventDefault();
+              const coords = this._getCanvasCoordinates(e);
+              this.isLeftMouseDown = true;
+              this.isRightMouseDown = false; // Ensure right is not active for touch
+              this.placeCallback(coords.x, coords.y);
+            },
+            { passive: false }
+          );
+
+          this.canvas.addEventListener(
+            "touchmove",
+            (e) => {
+              e.preventDefault();
+              if (this.isLeftMouseDown) {
+                const coords = this._getCanvasCoordinates(e);
+                this.placeCallback(coords.x, coords.y);
+              }
+            },
+            { passive: false }
+          );
+
+          document.addEventListener("touchend", () => {
+            this.isLeftMouseDown = false;
+            this.isRightMouseDown = false;
+          });
+        }
+      }
+    </script>
+
+    <script id="game-ui">
+      // --- GameUI Class (Handles non-canvas UI elements) ---
+      class GameUI {
+        constructor(gameEngine) {
+          // gameEngine is an instance of GameEngine
+          this.gameEngine = gameEngine;
+          this.messageOverlay = document.getElementById("messageOverlay");
+          this.pauseButton = document.getElementById("pauseButton");
+          this.resetButton = document.getElementById("resetButton");
+          this.brushSizeSlider = document.getElementById("brushSize");
+          this.brushSizeValueDisplay =
+            document.getElementById("brushSizeValue");
+          this.canvasSizeSelector =
+            document.getElementById("canvasSizeSelector");
+
+          // Instantiate Toolbar, GameUI owns it.
+          this.toolbar = new Toolbar("toolbar", (materialType) => {
+            // Depends on Toolbar class
+            this.gameEngine.setSelectedMaterial(materialType);
+          });
+
+          this._setupEventListeners();
+        }
+
+        // Called by GameEngine to update toolbar selection visual
+        updateToolbarVisual(selectedType) {
+          this.toolbar.updateSelectedVisual(selectedType);
+        }
+
+        updatePauseButton(isPaused) {
+          if (isPaused) {
+            this.pauseButton.textContent = "Resume";
+            this.pauseButton.classList.remove(
+              "bg-yellow-500",
+              "hover:bg-yellow-600"
+            );
+            this.pauseButton.classList.add(
+              "bg-green-500",
+              "hover:bg-green-600"
+            );
+            this.messageOverlay.textContent = "Game Paused";
+            this.messageOverlay.classList.remove("hidden");
+          } else {
+            this.pauseButton.textContent = "Pause";
+            this.pauseButton.classList.remove(
+              "bg-green-500",
+              "hover:bg-green-600"
+            );
+            this.pauseButton.classList.add(
+              "bg-yellow-500",
+              "hover:bg-yellow-600"
+            );
+            this.messageOverlay.classList.add("hidden");
+          }
+        }
+
+        _setupEventListeners() {
+          this.pauseButton.addEventListener("click", () =>
+            this.gameEngine.togglePause()
+          );
+          this.resetButton.addEventListener("click", () =>
+            this.gameEngine.resetGame()
+          );
+
+          this.brushSizeSlider.min = GameConfig.MIN_BRUSH_SIZE; // Depends on GameConfig
+          this.brushSizeSlider.max = GameConfig.MAX_BRUSH_SIZE;
+          this.brushSizeSlider.value = this.gameEngine.getBrushSize();
+          this.brushSizeValueDisplay.textContent =
+            this.gameEngine.getBrushSize();
+          this.brushSizeSlider.addEventListener("input", (e) => {
+            const newSize = parseInt(e.target.value);
+            this.gameEngine.setBrushSize(newSize);
+            this.brushSizeValueDisplay.textContent = newSize;
+          });
+
+          this.canvasSizeSelector.value = this.gameEngine.getGridWidth();
+          this.canvasSizeSelector.addEventListener("change", (e) => {
+            const newSize = parseInt(e.target.value);
+            this.gameEngine.resizeGrid(newSize, newSize);
+          });
+        }
+      }
+    </script>
+
+    <script id="game-engine">
+      // --- Game Engine Class (Orchestrator) ---
+      class GameEngine {
+        constructor(canvasId) {
+          this.gridWidth = GameConfig.DEFAULT_GRID_WIDTH; // Depends on GameConfig
+          this.gridHeight = GameConfig.DEFAULT_GRID_HEIGHT;
+
+          this.gameBoard = new GameBoard(this.gridWidth, this.gridHeight); // Depends on GameBoard
+          this.renderer = new Renderer(canvasId); // Depends on Renderer
+          this.simulation = new Simulation(this.gameBoard); // Depends on Simulation
+
+          // UI and Input Handling
+          this.ui = new GameUI(this); // Depends on GameUI
+          this.canvasInputHandler = new CanvasInputHandler( // Depends on CanvasInputHandler
+            this.renderer.canvas,
+            (x, y) => this._placeOrDelete(x, y, false), // Place callback
+            (x, y) => this._placeOrDelete(x, y, true) // Delete callback
+          );
+
+          this.selectedMaterialType = MaterialType.SAND; // Depends on MaterialType
+          this.brushSize = GameConfig.DEFAULT_BRUSH_SIZE;
+          this.isPaused = false;
+          // isMouseDown and isRightMouseDown are now managed by CanvasInputHandler
+          this.gameLoopInterval = null;
+
+          this._init();
+        }
+
+        _init() {
+          this.renderer.resize(this.gridWidth, this.gridHeight);
+          this.ui.updateToolbarVisual(this.selectedMaterialType); // Tell UI to update toolbar
+          this.ui.updatePauseButton(this.isPaused);
+          // Canvas event listeners are set up by CanvasInputHandler's constructor
+          this.gameLoopInterval = setInterval(
+            () => this._gameLoop(),
+            1000 / GameConfig.FPS
+          );
+        }
+
+        _gameLoop() {
+          if (!this.isPaused) {
+            this.simulation.update();
+          }
+          this.renderer.draw(this.gameBoard);
+        }
+
+        // --- Methods called by UI or Input Handler ---
+        setSelectedMaterial(type) {
+          this.selectedMaterialType = type;
+          this.ui.updateToolbarVisual(type); // Notify UI to update its display
+        }
+
+        setBrushSize(size) {
+          this.brushSize = size;
+        }
+        getBrushSize() {
+          return this.brushSize;
+        }
+        getGridWidth() {
+          return this.gridWidth;
+        }
+
+        togglePause() {
+          this.isPaused = !this.isPaused;
+          this.ui.updatePauseButton(this.isPaused);
+        }
+
+        resetGame() {
+          this.gameBoard = new GameBoard(this.gridWidth, this.gridHeight);
+          this.simulation.gameBoard = this.gameBoard;
+          if (this.isPaused) this.togglePause();
+        }
+
+        resizeGrid(newWidth, newHeight) {
+          this.gridWidth = newWidth;
+          this.gridHeight = newHeight;
+          this.gameBoard = new GameBoard(this.gridWidth, this.gridHeight);
+          this.simulation.gameBoard = this.gameBoard;
+          this.renderer.resize(this.gridWidth, this.gridHeight);
+          if (this.isPaused) this.togglePause();
+        }
+
+        // Callback for CanvasInputHandler
+        _placeOrDelete(canvasPixelX, canvasPixelY, isDeleting) {
+          const gridX = Math.floor(canvasPixelX / GameConfig.PIXEL_SCALE);
+          const gridY = Math.floor(canvasPixelY / GameConfig.PIXEL_SCALE);
+          const radius = Math.floor((this.brushSize - 1) / 2);
+
+          for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+              if (
+                this.brushSize === 1 ||
+                dx * dx + dy * dy <= radius * radius
+              ) {
+                const newX = gridX + dx;
+                const newY = gridY + dy;
+                if (
+                  newX >= 0 &&
+                  newX < this.gridWidth &&
+                  newY >= 0 &&
+                  newY < this.gridHeight
+                ) {
+                  if (isDeleting) {
+                    if (!this.gameBoard.isEmpty(newX, newY))
+                      this.gameBoard.setGrain(newX, newY, null);
+                  } else {
+                    if (
+                      this.gameBoard.isEmpty(newX, newY) &&
+                      this.selectedMaterialType !== MaterialType.EMPTY
+                    ) {
+                      const newGrain = new Grain(
+                        newX,
+                        newY,
+                        this.selectedMaterialType
+                      ); // Depends on Grain
+                      this.gameBoard.setGrain(newX, newY, newGrain);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <script id="game-main">
+      // --- Initialize Game ---
+      window.onload = () => {
+        new GameEngine("gameCanvas"); // Depends on GameEngine
+      };
+    </script>
+  </body>
+</html>
